@@ -1,10 +1,12 @@
 /**
  * Edit API Routes
  *
- * Uses block-based editing approach:
- * - ONE replace_block for party definition (not 6 field changes)
- * - Paragraph-level normalized text matching
- * - Explicit verification with required_tokens logging
+ * General-Purpose Contract Editing Engine
+ *
+ * This system converts natural language change requests into
+ * structurally safe DOCX modifications.
+ *
+ * NOT domain-specific. No assumptions about company/address/contact.
  */
 
 import { Router, Request, Response } from 'express';
@@ -12,7 +14,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
-import { BlockContractEditor } from '../block-editor';
+import { editContract } from '../contract-engine';
 
 const router = Router();
 
@@ -66,14 +68,22 @@ setInterval(() => {
 /**
  * POST /api/edit
  *
- * Upload a DOCX file and apply block-based edits
+ * General-purpose contract editing endpoint
+ *
+ * Required output for every request:
+ * 1) Change Items (request decomposition)
+ * 2) Candidate edit locations + rationale
+ * 3) Final Edit Specs
+ * 4) BEFORE / AFTER evidence
+ * 5) Verification result (PASS / FAIL + reason)
  */
 router.post('/edit', upload.single('file'), async (req: Request, res: Response) => {
   const requestId = uuidv4();
   const startTime = Date.now();
 
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`[${requestId}] Edit request received`);
+  console.log(`\n${'='.repeat(70)}`);
+  console.log(`[${requestId}] CONTRACT EDIT REQUEST`);
+  console.log('='.repeat(70));
 
   let uploadedFilePath: string | undefined;
 
@@ -98,12 +108,12 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
     uploadedFilePath = req.file.path;
     const fileName = req.file.originalname;
 
-    console.log(`[${requestId}] File: ${fileName}`);
-    console.log(`[${requestId}] Instruction: ${instruction.substring(0, 200)}...`);
+    console.log(`File: ${fileName}`);
+    console.log(`User Request: ${instruction}`);
+    console.log('-'.repeat(70));
 
     // Check for OpenAI API key
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       fs.unlinkSync(uploadedFilePath);
       return res.status(500).json({
         success: false,
@@ -114,59 +124,132 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
     // Read the uploaded file
     const documentBuffer = fs.readFileSync(uploadedFilePath);
 
-    // Use block editor
-    const editor = new BlockContractEditor(
-      openaiApiKey,
-      process.env.OPENAI_MODEL || 'gpt-4-turbo-preview'
-    );
-
-    const result = await editor.edit(documentBuffer, instruction);
+    // Execute the generalized contract editing pipeline
+    const result = await editContract(documentBuffer, instruction);
 
     // Clean up uploaded file
     fs.unlinkSync(uploadedFilePath);
     uploadedFilePath = undefined;
 
-    // Log results
-    console.log(`[${requestId}] Pipeline Result:`);
-    console.log(`  Success: ${result.success}`);
-    console.log(`  Edit Result:`);
-    console.log(`    - Block Type: ${result.editResult.blockType}`);
-    console.log(`    - Anchor Found: ${result.editResult.anchorFound}`);
-    console.log(`    - Applied At: ${result.editResult.appliedAt || 'N/A'}`);
-    if (result.editResult.error) {
-      console.log(`    - Error: ${result.editResult.error}`);
-    }
-    console.log(`  Verification:`);
-    console.log(`    - Passed: ${result.verification.passed}`);
-    console.log(`    - Required Tokens: [${result.verification.requiredTokens.join(', ')}]`);
-    console.log(`    - Found Tokens: [${result.verification.foundTokens.join(', ')}]`);
-    console.log(`    - Missing Tokens: [${result.verification.missingTokens.join(', ')}]`);
-    console.log(`    - Details: ${result.verification.details}`);
-    console.log(`  Duration: ${Date.now() - startTime}ms`);
-    console.log('='.repeat(60));
+    // ========================
+    // OUTPUT: Required Logging
+    // ========================
 
-    // Build response
+    // 1) Change Items
+    console.log('\n[1] CHANGE ITEMS (Request Decomposition):');
+    for (const item of result.changeItems) {
+      console.log(`  - ID: ${item.id}`);
+      console.log(`    Intent: ${item.intent}`);
+      console.log(`    Fragment: "${item.userRequestFragment}"`);
+      if (item.ambiguityNote) {
+        console.log(`    ⚠️ Ambiguity: ${item.ambiguityNote}`);
+      }
+    }
+
+    // 2) Candidate Locations
+    console.log('\n[2] CANDIDATE LOCATIONS:');
+    for (const item of result.changeItems) {
+      console.log(`  Change Item: ${item.id}`);
+      for (const candidate of item.candidates) {
+        console.log(`    - Location: ${candidate.locationDescription}`);
+        console.log(`      Excerpt: "${candidate.excerptFromDocument.substring(0, 80)}..."`);
+        console.log(`      Rationale: ${candidate.rationale}`);
+        console.log(`      Confidence: ${(candidate.confidence * 100).toFixed(0)}%`);
+      }
+    }
+
+    // 3) Edit Specs
+    console.log('\n[3] EDIT SPECIFICATIONS:');
+    for (const spec of result.editSpecs) {
+      console.log(`  - Spec for: ${spec.changeItemId}`);
+      console.log(`    Target Unit: ${spec.targetUnit}`);
+      console.log(`    Edit Type: ${spec.editType}`);
+      console.log(`    Anchor: "${spec.anchorText.substring(0, 60)}..."`);
+      console.log(`    Before: "${spec.beforeText.substring(0, 60)}..."`);
+      console.log(`    After: "${spec.afterText.substring(0, 60)}..."`);
+    }
+
+    // 4) BEFORE / AFTER Evidence
+    console.log('\n[4] BEFORE / AFTER EVIDENCE:');
+    for (const exec of result.executions) {
+      console.log(`  - Spec: ${exec.editSpecId}`);
+      console.log(`    Anchor Found: ${exec.anchorFound}`);
+      console.log(`    Applied: ${exec.applied}`);
+      if (exec.blockReason) {
+        console.log(`    ❌ Block Reason: ${exec.blockReason}`);
+      }
+      console.log(`    BEFORE: "${exec.actualBefore.substring(0, 100)}..."`);
+      console.log(`    AFTER:  "${exec.actualAfter.substring(0, 100)}..."`);
+    }
+
+    // 5) Verification Result
+    console.log('\n[5] VERIFICATION RESULT:');
+    console.log(`  Status: ${result.verification.status}`);
+    console.log(`  Summary: ${result.verification.summary}`);
+    console.log(`  Document Integrity:`);
+    console.log(`    - Valid: ${result.verification.documentIntegrity.valid}`);
+    console.log(`    - Can Open: ${result.verification.documentIntegrity.canOpen}`);
+    console.log(`    - Structure Preserved: ${result.verification.documentIntegrity.structurePreserved}`);
+    console.log('  Spec Results:');
+    for (const specResult of result.verification.specResults) {
+      console.log(`    - ${specResult.editSpecId}: ${specResult.status}`);
+      console.log(`      after_text found: ${specResult.afterTextFound}`);
+      console.log(`      location correct: ${specResult.locationCorrect}`);
+      console.log(`      match: ${specResult.evidence.matchPercentage}%`);
+      if (specResult.failureReason) {
+        console.log(`      ❌ Reason: ${specResult.failureReason}`);
+      }
+    }
+
+    // Timing
+    console.log('\n[TIMING]:');
+    console.log(`  Interpret: ${result.timing.interpretMs}ms`);
+    console.log(`  Spec Gen:  ${result.timing.specGenMs}ms`);
+    console.log(`  Execute:   ${result.timing.executeMs}ms`);
+    console.log(`  Verify:    ${result.timing.verifyMs}ms`);
+    console.log(`  TOTAL:     ${result.timing.totalMs}ms`);
+    console.log('='.repeat(70));
+
+    // Build API response
+    const success = result.verification.status === 'PASS';
     const response: Record<string, unknown> = {
-      success: result.success,
-      editResult: {
-        blockType: result.editResult.blockType,
-        anchorFound: result.editResult.anchorFound,
-        appliedAt: result.editResult.appliedAt,
-        beforeText: result.editResult.beforeText.substring(0, 300) + (result.editResult.beforeText.length > 300 ? '...' : ''),
-        afterText: result.editResult.afterText.substring(0, 300) + (result.editResult.afterText.length > 300 ? '...' : ''),
-        error: result.editResult.error
+      success,
+      userRequest: result.userRequest,
+      changeItems: result.changeItems,
+      editSpecs: result.editSpecs.map(spec => ({
+        changeItemId: spec.changeItemId,
+        targetUnit: spec.targetUnit,
+        editType: spec.editType,
+        anchorText: spec.anchorText.substring(0, 200) + (spec.anchorText.length > 200 ? '...' : ''),
+        beforeText: spec.beforeText,
+        afterText: spec.afterText,
+        constraints: spec.constraints,
+      })),
+      executions: result.executions.map(exec => ({
+        editSpecId: exec.editSpecId,
+        anchorFound: exec.anchorFound,
+        applied: exec.applied,
+        blockReason: exec.blockReason,
+        beforeText: exec.actualBefore.substring(0, 300) + (exec.actualBefore.length > 300 ? '...' : ''),
+        afterText: exec.actualAfter.substring(0, 300) + (exec.actualAfter.length > 300 ? '...' : ''),
+        locationIndex: exec.locationIndex,
+      })),
+      verification: {
+        status: result.verification.status,
+        summary: result.verification.summary,
+        documentIntegrity: result.verification.documentIntegrity,
+        specResults: result.verification.specResults,
       },
-      verification: result.verification,
-      error: result.success ? undefined : (result.editResult.error || result.verification.details)
+      timing: result.timing,
     };
 
-    if (result.success && result.modifiedBuffer) {
+    if (success && result.modifiedDocument) {
       // Store the modified file for download
       const downloadId = uuidv4();
       const modifiedFileName = `edited_${fileName}`;
 
       processedFiles.set(downloadId, {
-        buffer: result.modifiedBuffer,
+        buffer: result.modifiedDocument,
         fileName: modifiedFileName,
         expiry: Date.now() + 15 * 60 * 1000, // 15 minutes
       });
@@ -228,7 +311,7 @@ router.get('/health', (req: Request, res: Response) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     openaiConfigured: !!process.env.OPENAI_API_KEY,
-    approach: 'block-based-editing'
+    approach: 'general-purpose-contract-engine',
   });
 });
 

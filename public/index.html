@@ -3,439 +3,783 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agreement Updater v2 - 계약서 편집기</title>
+  <title>Contract Editor - General Purpose Engine</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      min-height: 100vh;
-      color: #fff;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
-    header { text-align: center; margin-bottom: 40px; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
     h1 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      font-size: 2rem;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
+      margin-bottom: 0.5rem;
     }
-    .subtitle { color: #888; font-size: 1.1rem; }
-    .card {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 30px;
-      margin-bottom: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.9rem;
     }
-    .upload-area {
-      border: 2px dashed rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      padding: 40px;
+
+    .badge {
+      display: inline-block;
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      color: #60a5fa;
+      margin-top: 0.5rem;
+    }
+
+    .upload-section {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid #334155;
+    }
+
+    .file-input-wrapper {
+      border: 2px dashed #334155;
+      border-radius: 0.75rem;
+      padding: 2rem;
       text-align: center;
+      margin-bottom: 1.5rem;
       cursor: pointer;
-      transition: all 0.3s ease;
-      margin-bottom: 20px;
+      transition: all 0.2s;
     }
-    .upload-area:hover { border-color: #00d4ff; background: rgba(0, 212, 255, 0.05); }
-    .upload-area.dragover { border-color: #00d4ff; background: rgba(0, 212, 255, 0.1); }
-    .upload-area.has-file { border-color: #00ff88; background: rgba(0, 255, 136, 0.05); }
-    .upload-icon { font-size: 48px; margin-bottom: 15px; }
-    .upload-text { color: #aaa; margin-bottom: 10px; }
-    .file-name { color: #00ff88; font-weight: 600; margin-top: 10px; }
-    #file-input { display: none; }
-    label { display: block; margin-bottom: 8px; color: #ccc; font-weight: 500; }
+
+    .file-input-wrapper:hover {
+      border-color: #60a5fa;
+      background: rgba(96, 165, 250, 0.1);
+    }
+
+    .file-input-wrapper.has-file {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-label {
+      display: block;
+      font-size: 1rem;
+      color: #94a3b8;
+    }
+
+    .file-name {
+      color: #10b981;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
     textarea {
       width: 100%;
-      padding: 15px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.3);
-      color: #fff;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      color: #e2e8f0;
       font-size: 1rem;
       resize: vertical;
-      min-height: 180px;
-      font-family: inherit;
-      line-height: 1.5;
+      min-height: 100px;
+      margin-bottom: 1.5rem;
     }
-    textarea:focus { outline: none; border-color: #00d4ff; }
-    textarea::placeholder { color: #666; }
-    .btn {
-      display: inline-block;
-      padding: 15px 40px;
+
+    textarea:focus {
+      outline: none;
+      border-color: #60a5fa;
+    }
+
+    textarea::placeholder {
+      color: #64748b;
+    }
+
+    button {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
       border: none;
-      border-radius: 8px;
-      font-size: 1.1rem;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
       width: 100%;
-      margin-top: 20px;
+      transition: all 0.2s;
     }
-    .btn-primary { background: linear-gradient(90deg, #00d4ff, #7b2cbf); color: #fff; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
-    .btn-success { background: linear-gradient(90deg, #00ff88, #00d4ff); color: #1a1a2e; }
-    .result { display: none; margin-top: 30px; }
-    .result.show { display: block; }
-    .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-    .status-icon { font-size: 24px; }
-    .status-text { font-size: 1.2rem; font-weight: 600; }
-    .status-success { color: #00ff88; }
-    .status-error { color: #ff4757; }
-    .block-change {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 20px;
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
     }
-    .block-change h4 { color: #00d4ff; margin-bottom: 15px; }
-    .block-label { color: #888; font-size: 0.85rem; margin-bottom: 5px; text-transform: uppercase; }
-    .block-content {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-      font-family: monospace;
-      font-size: 0.9rem;
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.6;
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
-    .block-before { border-left: 3px solid #ff4757; color: #ffaaaa; }
-    .block-after { border-left: 3px solid #00ff88; color: #aaffaa; }
-    .verification-section {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      padding: 15px;
-      margin-top: 20px;
+
+    .results {
+      display: none;
     }
-    .verification-section h5 { color: #ccc; margin-bottom: 15px; font-size: 1rem; }
-    .token-row { margin-bottom: 12px; }
-    .token-label { color: #888; font-size: 0.8rem; margin-bottom: 6px; }
-    .token-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .token {
-      padding: 4px 10px;
-      border-radius: 4px;
+
+    .results.show {
+      display: block;
+    }
+
+    .result-card {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #334155;
+    }
+
+    .result-card h3 {
+      font-size: 1rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .result-card h3 .step-number {
+      background: #3b82f6;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .status-banner {
+      padding: 1rem;
+      border-radius: 0.75rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .status-banner.pass {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #10b981;
+      color: #10b981;
+    }
+
+    .status-banner.fail {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+    }
+
+    .status-banner.blocked {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid #f59e0b;
+      color: #f59e0b;
+    }
+
+    .change-item {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border-left: 3px solid #60a5fa;
+    }
+
+    .change-item .id {
+      font-weight: 600;
+      color: #60a5fa;
       font-size: 0.85rem;
-      font-family: monospace;
     }
-    .token-found { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
-    .token-missing { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
-    .verification-details {
-      padding: 12px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 4px;
+
+    .change-item .intent {
+      display: inline-block;
+      background: #334155;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      margin-left: 0.5rem;
+    }
+
+    .change-item .fragment {
+      color: #94a3b8;
       font-size: 0.9rem;
-      color: #aaa;
-      margin-top: 10px;
+      margin-top: 0.5rem;
     }
-    .error-message {
-      background: rgba(255, 71, 87, 0.1);
-      border: 1px solid rgba(255, 71, 87, 0.3);
-      border-radius: 8px;
-      padding: 15px;
-      color: #ff4757;
+
+    .candidate {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
     }
-    .loading { display: none; text-align: center; padding: 40px; }
-    .loading.show { display: block; }
+
+    .candidate .location {
+      color: #a78bfa;
+      font-weight: 500;
+    }
+
+    .candidate .excerpt {
+      color: #64748b;
+      font-style: italic;
+      margin: 0.25rem 0;
+      word-break: break-all;
+    }
+
+    .candidate .confidence {
+      color: #10b981;
+      font-size: 0.75rem;
+    }
+
+    .edit-spec {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .edit-spec .meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+
+    .edit-spec .meta span {
+      font-size: 0.75rem;
+      background: #334155;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+
+    .edit-spec .text-block {
+      margin-top: 0.75rem;
+    }
+
+    .edit-spec .text-block label {
+      font-size: 0.75rem;
+      color: #64748b;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .edit-spec .text-block pre {
+      background: #1e293b;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .edit-spec .text-block.before pre {
+      border-left: 3px solid #ef4444;
+    }
+
+    .edit-spec .text-block.after pre {
+      border-left: 3px solid #10b981;
+    }
+
+    .execution {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .execution .status-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .execution .status-item {
+      font-size: 0.85rem;
+    }
+
+    .execution .status-item.success {
+      color: #10b981;
+    }
+
+    .execution .status-item.error {
+      color: #ef4444;
+    }
+
+    .execution .block-reason {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid #ef4444;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      color: #ef4444;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .verification-detail {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .verification-detail .spec-id {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .verification-detail .checks {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .verification-detail .check {
+      font-size: 0.85rem;
+    }
+
+    .verification-detail .check.pass {
+      color: #10b981;
+    }
+
+    .verification-detail .check.fail {
+      color: #ef4444;
+    }
+
+    .integrity {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .integrity .item {
+      background: #0f172a;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      text-align: center;
+    }
+
+    .integrity .item .label {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .integrity .item .value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .integrity .item .value.yes {
+      color: #10b981;
+    }
+
+    .integrity .item .value.no {
+      color: #ef4444;
+    }
+
+    .timing {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .timing .item {
+      background: #0f172a;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      text-align: center;
+    }
+
+    .timing .item .label {
+      font-size: 0.7rem;
+      color: #64748b;
+    }
+
+    .timing .item .value {
+      font-size: 0.9rem;
+      color: #60a5fa;
+    }
+
+    .download-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      margin-top: 1rem;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .loading.show {
+      display: block;
+    }
+
     .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid rgba(255, 255, 255, 0.1);
-      border-top-color: #00d4ff;
+      width: 40px;
+      height: 40px;
+      border: 3px solid #334155;
+      border-top-color: #60a5fa;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+      margin: 0 auto 1rem;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { color: #888; }
-    .phase-indicator {
-      margin-top: 15px;
-      padding: 10px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      font-size: 0.9rem;
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
-    footer { text-align: center; margin-top: 40px; color: #666; font-size: 0.9rem; }
-    .approach-badge {
-      display: inline-block;
-      padding: 5px 15px;
-      background: rgba(0, 212, 255, 0.1);
-      border: 1px solid rgba(0, 212, 255, 0.3);
-      border-radius: 20px;
-      font-size: 0.85rem;
-      color: #00d4ff;
-      margin-top: 10px;
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      color: #ef4444;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Agreement Updater v2</h1>
-      <p class="subtitle">AI 기반 계약서 편집 시스템</p>
-      <span class="approach-badge">Block-based Editing</span>
+      <h1>Contract Editor</h1>
+      <p class="subtitle">General-Purpose Contract Editing Engine</p>
+      <span class="badge">Structural &amp; Semantic Analysis</span>
     </header>
 
-    <div class="card">
-      <form id="edit-form">
-        <div class="upload-area" id="upload-area">
-          <div class="upload-icon">📄</div>
-          <div class="upload-text">DOCX 파일을 드래그하거나 클릭하여 업로드</div>
-          <div class="file-name" id="file-name"></div>
-          <input type="file" id="file-input" accept=".docx">
-        </div>
+    <section class="upload-section">
+      <div class="file-input-wrapper" id="fileWrapper">
+        <input type="file" id="fileInput" accept=".docx">
+        <label class="file-label">Click to upload DOCX file</label>
+        <p class="file-name" id="fileName"></p>
+      </div>
 
-        <div>
-          <label for="instruction">편집 지시사항</label>
-          <textarea id="instruction" placeholder="예시: 다음 정보로 계약 '을' 회사 정보를 변경해주세요
+      <textarea id="instruction" placeholder="Enter your change request in natural language...&#10;&#10;Examples:&#10;- 계약금액을 5,000만원에서 7,000만원으로 변경해주세요&#10;- 계약기간을 2025년 12월 31일까지로 연장해주세요&#10;- 제5조 위약금 조항에서 10%를 15%로 수정해주세요"></textarea>
 
-회사명: ENSURE
-담당자: LEE SANG HWA
-직책: Technical Support Team
-이메일: lee.shwa@ensecure.co.kr
-전화번호: +62 822 2502 0056
-주소: Kirana Two Tower Office Lt.10 Unit A
-      Jl. Boulevard Timur No.88 5, Pegangsaan Dua
-      Kelapa Gading, Jakarta Utara, Indonesia"></textarea>
-        </div>
+      <button id="submitBtn" onclick="submitEdit()">Apply Changes</button>
+    </section>
 
-        <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
-          편집 시작
-        </button>
-      </form>
-    </div>
+    <div class="error-message" id="errorMessage"></div>
 
     <div class="loading" id="loading">
       <div class="spinner"></div>
-      <div class="loading-text">계약서를 분석하고 편집 중입니다...</div>
-      <div class="phase-indicator" id="phase-indicator">문서를 분석하고 있습니다...</div>
+      <p>Processing document...</p>
+      <p style="font-size: 0.85rem; color: #64748b;">Analyzing structure and applying changes</p>
     </div>
 
-    <div class="result" id="result">
-      <div class="card">
-        <div class="result-header">
-          <span class="status-icon" id="status-icon"></span>
-          <span class="status-text" id="status-text"></span>
-        </div>
+    <section class="results" id="results">
+      <!-- Status Banner -->
+      <div class="status-banner" id="statusBanner"></div>
 
-        <div id="download-section" style="display: none;">
-          <a href="#" class="btn btn-success" id="download-btn">📥 수정된 계약서 다운로드</a>
-          <p style="margin-top: 10px; color: #888; font-size: 0.9rem;">* 다운로드 링크는 15분 후 만료됩니다</p>
-        </div>
-
-        <div id="error-section" style="display: none;">
-          <div class="error-message" id="error-message"></div>
-        </div>
-
-        <div id="block-change-section" class="block-change" style="display: none;">
-          <h4>📝 변경된 블록</h4>
-
-          <div class="block-label">BEFORE (원본)</div>
-          <div class="block-content block-before" id="before-text"></div>
-
-          <div class="block-label">AFTER (수정)</div>
-          <div class="block-content block-after" id="after-text"></div>
-        </div>
-
-        <div id="verification-section" class="verification-section" style="display: none;">
-          <h5>🔍 검증 결과</h5>
-
-          <div class="token-row">
-            <div class="token-label">필수 토큰 (Required Tokens)</div>
-            <div class="token-list" id="required-tokens"></div>
-          </div>
-
-          <div class="token-row">
-            <div class="token-label">누락 토큰 (Missing Tokens)</div>
-            <div class="token-list" id="missing-tokens"></div>
-          </div>
-
-          <div class="verification-details" id="verification-details"></div>
-        </div>
+      <!-- 1. Change Items -->
+      <div class="result-card">
+        <h3><span class="step-number">1</span> Change Items</h3>
+        <div id="changeItems"></div>
       </div>
-    </div>
 
-    <footer>
-      <p>당사자 정의 블록을 통째로 교체하는 방식으로 안정적인 편집을 수행합니다.</p>
-      <p style="margin-top: 5px;">수정된 텍스트는 노란색으로 하이라이트 표시됩니다.</p>
-    </footer>
+      <!-- 2. Candidate Locations -->
+      <div class="result-card">
+        <h3><span class="step-number">2</span> Candidate Locations</h3>
+        <div id="candidates"></div>
+      </div>
+
+      <!-- 3. Edit Specifications -->
+      <div class="result-card">
+        <h3><span class="step-number">3</span> Edit Specifications</h3>
+        <div id="editSpecs"></div>
+      </div>
+
+      <!-- 4. Execution Results -->
+      <div class="result-card">
+        <h3><span class="step-number">4</span> Execution Results (BEFORE / AFTER)</h3>
+        <div id="executions"></div>
+      </div>
+
+      <!-- 5. Verification -->
+      <div class="result-card">
+        <h3><span class="step-number">5</span> Verification</h3>
+        <div id="verification"></div>
+      </div>
+
+      <!-- Timing -->
+      <div class="result-card">
+        <h3>Timing</h3>
+        <div class="timing" id="timing"></div>
+      </div>
+
+      <!-- Download -->
+      <button class="download-btn" id="downloadBtn" style="display: none;" onclick="downloadFile()">
+        Download Modified Document
+      </button>
+    </section>
   </div>
 
   <script>
-    const uploadArea = document.getElementById('upload-area');
-    const fileInput = document.getElementById('file-input');
-    const fileName = document.getElementById('file-name');
-    const instruction = document.getElementById('instruction');
-    const submitBtn = document.getElementById('submit-btn');
-    const editForm = document.getElementById('edit-form');
-    const loading = document.getElementById('loading');
-    const result = document.getElementById('result');
-    const phaseIndicator = document.getElementById('phase-indicator');
+    const fileInput = document.getElementById('fileInput');
+    const fileWrapper = document.getElementById('fileWrapper');
+    const fileName = document.getElementById('fileName');
+    let downloadUrl = null;
 
-    let selectedFile = null;
+    fileWrapper.addEventListener('click', () => fileInput.click());
 
-    // File upload handling
-    uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('dragover');
-    });
-    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
-    });
     fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+      if (e.target.files.length > 0) {
+        fileName.textContent = e.target.files[0].name;
+        fileWrapper.classList.add('has-file');
+      } else {
+        fileName.textContent = '';
+        fileWrapper.classList.remove('has-file');
+      }
     });
 
-    function handleFile(file) {
-      if (!file.name.endsWith('.docx')) {
-        alert('DOCX 파일만 업로드 가능합니다.');
+    async function submitEdit() {
+      const file = fileInput.files[0];
+      const instruction = document.getElementById('instruction').value;
+
+      if (!file) {
+        alert('Please upload a DOCX file');
         return;
       }
-      selectedFile = file;
-      fileName.textContent = `📎 ${file.name}`;
-      uploadArea.classList.add('has-file');
-      updateSubmitButton();
-    }
 
-    instruction.addEventListener('input', updateSubmitButton);
+      if (!instruction.trim()) {
+        alert('Please enter a change instruction');
+        return;
+      }
 
-    function updateSubmitButton() {
-      submitBtn.disabled = !(selectedFile && instruction.value.trim());
-    }
+      // Reset UI
+      document.getElementById('results').classList.remove('show');
+      document.getElementById('loading').classList.add('show');
+      document.getElementById('errorMessage').classList.remove('show');
+      document.getElementById('downloadBtn').style.display = 'none';
+      document.getElementById('submitBtn').disabled = true;
 
-    // Form submission
-    editForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!selectedFile || !instruction.value.trim()) return;
-
-      loading.classList.add('show');
-      result.classList.remove('show');
-      submitBtn.disabled = true;
-
-      const phases = [
-        '문서를 파싱하고 있습니다...',
-        '문단을 추출하고 있습니다...',
-        'OpenAI가 블록 교체 사양을 생성하고 있습니다...',
-        '대상 블록을 찾고 있습니다...',
-        '블록을 교체하고 있습니다...',
-        '변경 사항을 검증하고 있습니다...'
-      ];
-
-      let phaseIndex = 0;
-      const phaseInterval = setInterval(() => {
-        if (phaseIndex < phases.length) {
-          phaseIndicator.textContent = phases[phaseIndex];
-          phaseIndex++;
-        }
-      }, 2500);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('instruction', instruction);
 
       try {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('instruction', instruction.value.trim());
+        const response = await fetch('/api/edit', {
+          method: 'POST',
+          body: formData
+        });
 
-        const response = await fetch('/api/edit', { method: 'POST', body: formData });
-        const data = await response.json();
+        const result = await response.json();
 
-        clearInterval(phaseInterval);
-        displayResult(data);
+        document.getElementById('loading').classList.remove('show');
+        document.getElementById('submitBtn').disabled = false;
 
+        if (response.ok) {
+          displayResults(result);
+        } else {
+          showError(result.error || 'Request failed');
+        }
       } catch (error) {
-        clearInterval(phaseInterval);
-        displayResult({ success: false, error: '서버 연결에 실패했습니다: ' + error.message });
-      } finally {
-        loading.classList.remove('show');
-        submitBtn.disabled = false;
+        document.getElementById('loading').classList.remove('show');
+        document.getElementById('submitBtn').disabled = false;
+        showError(error.message);
       }
-    });
+    }
 
-    function displayResult(data) {
-      result.classList.add('show');
+    function showError(message) {
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
 
-      const statusIcon = document.getElementById('status-icon');
-      const statusText = document.getElementById('status-text');
-      const downloadSection = document.getElementById('download-section');
-      const errorSection = document.getElementById('error-section');
-      const errorMessage = document.getElementById('error-message');
-      const blockChangeSection = document.getElementById('block-change-section');
-      const verificationSection = document.getElementById('verification-section');
+    function displayResults(result) {
+      document.getElementById('results').classList.add('show');
 
-      if (data.success) {
-        statusIcon.textContent = '✅';
-        statusText.textContent = '편집이 완료되었습니다';
-        statusText.className = 'status-text status-success';
-        downloadSection.style.display = 'block';
-        errorSection.style.display = 'none';
+      // Status Banner
+      const statusBanner = document.getElementById('statusBanner');
+      const status = result.verification?.status || 'FAIL';
+      statusBanner.className = `status-banner ${status.toLowerCase()}`;
+      statusBanner.textContent = status === 'PASS'
+        ? '✓ VERIFICATION PASSED - Changes Applied Successfully'
+        : status === 'BLOCKED'
+        ? '⚠ BLOCKED - Changes not applied due to ambiguity'
+        : '✗ VERIFICATION FAILED - ' + (result.verification?.summary || 'Unknown error');
 
-        const downloadBtn = document.getElementById('download-btn');
-        downloadBtn.href = data.downloadUrl;
-        downloadBtn.download = 'edited_contract.docx';
-      } else {
-        statusIcon.textContent = '❌';
-        statusText.textContent = '편집 실패';
-        statusText.className = 'status-text status-error';
-        downloadSection.style.display = 'none';
-        errorSection.style.display = 'block';
-        errorMessage.textContent = data.error || '알 수 없는 오류가 발생했습니다.';
-      }
+      // 1. Change Items
+      const changeItemsEl = document.getElementById('changeItems');
+      changeItemsEl.innerHTML = (result.changeItems || []).map(item => `
+        <div class="change-item">
+          <span class="id">${item.id}</span>
+          <span class="intent">${item.intent}</span>
+          <p class="fragment">"${item.userRequestFragment}"</p>
+          ${item.ambiguityNote ? `<p style="color: #f59e0b; font-size: 0.85rem; margin-top: 0.5rem;">⚠ ${item.ambiguityNote}</p>` : ''}
+        </div>
+      `).join('') || '<p style="color: #64748b;">No change items</p>';
 
-      // Display block change
-      if (data.editResult && (data.editResult.beforeText || data.editResult.afterText)) {
-        blockChangeSection.style.display = 'block';
-        document.getElementById('before-text').textContent = data.editResult.beforeText || '(없음)';
-        document.getElementById('after-text').textContent = data.editResult.afterText || '(없음)';
-      } else {
-        blockChangeSection.style.display = 'none';
-      }
-
-      // Display verification
-      if (data.verification) {
-        verificationSection.style.display = 'block';
-
-        const requiredTokensEl = document.getElementById('required-tokens');
-        const missingTokensEl = document.getElementById('missing-tokens');
-        const detailsEl = document.getElementById('verification-details');
-
-        requiredTokensEl.innerHTML = '';
-        missingTokensEl.innerHTML = '';
-
-        const requiredTokens = data.verification.requiredTokens || [];
-        const missingTokens = data.verification.missingTokens || [];
-
-        if (requiredTokens.length > 0) {
-          requiredTokens.forEach(token => {
-            const span = document.createElement('span');
-            span.className = 'token ' + (missingTokens.includes(token) ? 'token-missing' : 'token-found');
-            span.textContent = token;
-            requiredTokensEl.appendChild(span);
-          });
-        } else {
-          requiredTokensEl.innerHTML = '<span style="color: #888;">없음</span>';
+      // 2. Candidates
+      const candidatesEl = document.getElementById('candidates');
+      let candidatesHtml = '';
+      for (const item of (result.changeItems || [])) {
+        candidatesHtml += `<p style="color: #60a5fa; font-weight: 500; margin-bottom: 0.5rem;">${item.id}</p>`;
+        for (const candidate of (item.candidates || [])) {
+          candidatesHtml += `
+            <div class="candidate">
+              <p class="location">${candidate.locationDescription}</p>
+              <p class="excerpt">"${candidate.excerptFromDocument?.substring(0, 100)}..."</p>
+              <p class="confidence">${candidate.rationale} (${(candidate.confidence * 100).toFixed(0)}%)</p>
+            </div>
+          `;
         }
+      }
+      candidatesEl.innerHTML = candidatesHtml || '<p style="color: #64748b;">No candidates</p>';
 
-        if (missingTokens.length > 0) {
-          missingTokens.forEach(token => {
-            const span = document.createElement('span');
-            span.className = 'token token-missing';
-            span.textContent = token;
-            missingTokensEl.appendChild(span);
-          });
-        } else {
-          missingTokensEl.innerHTML = '<span style="color: #00ff88;">없음 - 모든 토큰 검증됨 ✓</span>';
-        }
+      // 3. Edit Specs
+      const editSpecsEl = document.getElementById('editSpecs');
+      editSpecsEl.innerHTML = (result.editSpecs || []).map(spec => `
+        <div class="edit-spec">
+          <div class="meta">
+            <span>${spec.changeItemId}</span>
+            <span>${spec.targetUnit}</span>
+            <span>${spec.editType}</span>
+          </div>
+          <div class="text-block before">
+            <label>BEFORE (to replace)</label>
+            <pre>${escapeHtml(spec.beforeText || '')}</pre>
+          </div>
+          <div class="text-block after">
+            <label>AFTER (new text)</label>
+            <pre>${escapeHtml(spec.afterText || '')}</pre>
+          </div>
+        </div>
+      `).join('') || '<p style="color: #64748b;">No edit specs</p>';
 
-        detailsEl.textContent = data.verification.details || 'No details';
-      } else {
-        verificationSection.style.display = 'none';
+      // 4. Executions
+      const executionsEl = document.getElementById('executions');
+      executionsEl.innerHTML = (result.executions || []).map(exec => `
+        <div class="execution">
+          <p style="font-weight: 600; margin-bottom: 0.5rem;">${exec.editSpecId}</p>
+          <div class="status-row">
+            <span class="status-item ${exec.anchorFound ? 'success' : 'error'}">
+              Anchor: ${exec.anchorFound ? '✓ Found' : '✗ Not Found'}
+            </span>
+            <span class="status-item ${exec.applied ? 'success' : 'error'}">
+              Applied: ${exec.applied ? '✓ Yes' : '✗ No'}
+            </span>
+            <span class="status-item">Location: P${exec.locationIndex}</span>
+          </div>
+          ${exec.blockReason ? `<div class="block-reason">❌ ${exec.blockReason}</div>` : ''}
+          <div class="text-block before" style="margin-top: 0.75rem;">
+            <label>BEFORE</label>
+            <pre>${escapeHtml(exec.beforeText || '')}</pre>
+          </div>
+          <div class="text-block after">
+            <label>AFTER</label>
+            <pre>${escapeHtml(exec.afterText || '')}</pre>
+          </div>
+        </div>
+      `).join('') || '<p style="color: #64748b;">No executions</p>';
+
+      // 5. Verification
+      const verificationEl = document.getElementById('verification');
+      const v = result.verification || {};
+      let verificationHtml = `<p style="font-size: 0.9rem; margin-bottom: 1rem;">${v.summary || 'No summary'}</p>`;
+
+      for (const specResult of (v.specResults || [])) {
+        verificationHtml += `
+          <div class="verification-detail">
+            <p class="spec-id">${specResult.editSpecId}: <span style="color: ${specResult.status === 'PASS' ? '#10b981' : '#ef4444'}">${specResult.status}</span></p>
+            <div class="checks">
+              <span class="check ${specResult.afterTextFound ? 'pass' : 'fail'}">
+                after_text: ${specResult.afterTextFound ? '✓' : '✗'}
+              </span>
+              <span class="check ${specResult.locationCorrect ? 'pass' : 'fail'}">
+                location: ${specResult.locationCorrect ? '✓' : '✗'}
+              </span>
+              <span class="check ${specResult.boundaryRespected ? 'pass' : 'fail'}">
+                boundary: ${specResult.boundaryRespected ? '✓' : '✗'}
+              </span>
+              <span class="check">match: ${specResult.evidence?.matchPercentage || 0}%</span>
+            </div>
+            ${specResult.failureReason ? `<p style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;">❌ ${specResult.failureReason}</p>` : ''}
+          </div>
+        `;
+      }
+
+      const integrity = v.documentIntegrity || {};
+      verificationHtml += `
+        <div class="integrity">
+          <div class="item">
+            <p class="label">Valid</p>
+            <p class="value ${integrity.valid ? 'yes' : 'no'}">${integrity.valid ? '✓' : '✗'}</p>
+          </div>
+          <div class="item">
+            <p class="label">Can Open</p>
+            <p class="value ${integrity.canOpen ? 'yes' : 'no'}">${integrity.canOpen ? '✓' : '✗'}</p>
+          </div>
+          <div class="item">
+            <p class="label">Structure</p>
+            <p class="value ${integrity.structurePreserved ? 'yes' : 'no'}">${integrity.structurePreserved ? '✓' : '✗'}</p>
+          </div>
+        </div>
+      `;
+      verificationEl.innerHTML = verificationHtml;
+
+      // Timing
+      const timingEl = document.getElementById('timing');
+      const t = result.timing || {};
+      timingEl.innerHTML = `
+        <div class="item"><p class="label">Interpret</p><p class="value">${t.interpretMs || 0}ms</p></div>
+        <div class="item"><p class="label">Spec Gen</p><p class="value">${t.specGenMs || 0}ms</p></div>
+        <div class="item"><p class="label">Execute</p><p class="value">${t.executeMs || 0}ms</p></div>
+        <div class="item"><p class="label">Verify</p><p class="value">${t.verifyMs || 0}ms</p></div>
+        <div class="item"><p class="label">Total</p><p class="value">${t.totalMs || 0}ms</p></div>
+      `;
+
+      // Download button
+      if (result.downloadUrl) {
+        downloadUrl = result.downloadUrl;
+        document.getElementById('downloadBtn').style.display = 'block';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function downloadFile() {
+      if (downloadUrl) {
+        window.location.href = downloadUrl;
       }
     }
   </script>
