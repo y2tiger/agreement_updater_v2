@@ -1,0 +1,20 @@
+# Render Blueprint for Agreement Updater v2
+# Deploy: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: agreement-updater-v2
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: OPENAI_MODEL
+        value: gpt-4-turbo-preview
+      - key: PIPELINE_TIMEOUT
+        value: "120000"
