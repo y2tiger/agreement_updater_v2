@@ -486,12 +486,10 @@
 
       // Simulate phase updates
       const phases = [
-        'Phase 0: 문서 구조를 분석하고 있습니다...',
-        'Phase 1: 변경 항목을 분해하고 있습니다...',
-        'Phase 2: 대상 위치를 탐색하고 있습니다...',
-        'Phase 3: 편집 사양을 확정하고 있습니다...',
-        'Phase 4: 변경 사항을 적용하고 있습니다...',
-        'Phase 5: 결과를 검증하고 있습니다...'
+        '문서를 분석하고 있습니다...',
+        'OpenAI가 변경 사항을 파악하고 있습니다...',
+        '찾기/바꾸기 작업을 수행하고 있습니다...',
+        '변경 사항을 적용하고 있습니다...'
       ];
 
       let phaseIndex = 0;
@@ -552,66 +550,50 @@
 
       } else {
         statusIcon.textContent = '❌';
-        statusText.textContent = '편집이 차단되었습니다';
+        statusText.textContent = '편집 실패';
         statusText.className = 'status-text status-error';
 
         downloadSection.style.display = 'none';
         errorSection.style.display = 'block';
-        errorMessage.textContent = data.blockedReason || '알 수 없는 오류가 발생했습니다.';
+        errorMessage.textContent = data.error || data.blockedReason || '알 수 없는 오류가 발생했습니다.';
       }
 
-      // Display change items
+      // Display changes (new simplified format)
       changesList.innerHTML = '';
-      if (data.changeItems && data.changeItems.length > 0) {
+      const changes = data.changes || data.changeItems || [];
+
+      if (changes.length > 0) {
         const title = document.createElement('h4');
         title.textContent = '변경 항목';
         title.style.marginBottom = '15px';
         title.style.color = '#ccc';
         changesList.appendChild(title);
 
-        data.changeItems.forEach(item => {
+        changes.forEach(item => {
           const div = document.createElement('div');
           div.className = 'change-item';
 
           const statusClass = item.status === 'APPLIED' ? 'applied' :
-                             item.status === 'FAILED' ? 'failed' : 'blocked';
+                             item.status === 'NOT_FOUND' ? 'failed' : 'blocked';
+
+          // Handle both old and new format
+          const find = item.find || item.beforeSnippet || '';
+          const replace = item.replace || item.afterSnippet || '';
+          const description = item.description || item.changeId || '';
+          const count = item.count !== undefined ? ` (${item.count}회)` : '';
 
           div.innerHTML = `
             <div class="change-header">
-              <span>${item.description || item.changeId}</span>
-              <span class="change-status ${statusClass}">${item.status}</span>
+              <span>${escapeHtml(description)}</span>
+              <span class="change-status ${statusClass}">${item.status}${count}</span>
             </div>
-            ${item.beforeSnippet ? `<div class="snippet snippet-before">- ${escapeHtml(item.beforeSnippet)}</div>` : ''}
-            ${item.afterSnippet ? `<div class="snippet snippet-after">+ ${escapeHtml(item.afterSnippet)}</div>` : ''}
+            ${find ? `<div class="snippet snippet-before">찾기: ${escapeHtml(find)}</div>` : ''}
+            ${replace ? `<div class="snippet snippet-after">바꾸기: ${escapeHtml(replace)}</div>` : ''}
           `;
           changesList.appendChild(div);
         });
       }
 
-      // Display QA evidence if available
-      if (data.qaEvidence && data.qaEvidence.length > 0) {
-        const failedEvidence = data.qaEvidence.filter(e => e.verificationStatus === 'FAIL');
-        if (failedEvidence.length > 0) {
-          const title = document.createElement('h4');
-          title.textContent = '실패 상세';
-          title.style.marginTop = '20px';
-          title.style.marginBottom = '15px';
-          title.style.color = '#ff4757';
-          changesList.appendChild(title);
-
-          failedEvidence.forEach(ev => {
-            const div = document.createElement('div');
-            div.className = 'change-item';
-            div.innerHTML = `
-              <div class="change-header">
-                <span>${ev.failureClassification || 'UNKNOWN'}</span>
-              </div>
-              <p style="color: #aaa; font-size: 0.9rem;">${escapeHtml(ev.failureDetails || '')}</p>
-            `;
-            changesList.appendChild(div);
-          });
-        }
-      }
     }
 
     function escapeHtml(text) {

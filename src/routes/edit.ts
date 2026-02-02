@@ -1,10 +1,7 @@
 /**
  * Edit API Routes
  *
- * Handles document upload and edit processing.
- * All files processed in /tmp directories.
- * Any failure returns a clear error response (never partial success).
- * "Edit completed successfully" returned ONLY after full verification PASS.
+ * Simplified contract editing using find/replace approach.
  */
 
 import { Router, Request, Response } from 'express';
@@ -12,13 +9,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ContractEditPipeline } from '../pipeline';
-import {
-  EditRequest,
-  EditResponse,
-  ChangeItemSummary,
-  PipelineResponse,
-} from '../types';
+import { SimpleContractEditor } from '../simple-editor';
 
 const router = Router();
 
@@ -73,18 +64,6 @@ setInterval(() => {
  * POST /api/edit
  *
  * Upload a DOCX file and apply edits based on natural language instructions.
- *
- * Body (multipart/form-data):
- * - file: The DOCX file to edit
- * - instruction: Natural language edit instruction
- *
- * Response:
- * - success: boolean
- * - downloadUrl: URL to download the modified file (if success)
- * - changeItems: Summary of changes
- * - qaEvidence: Evidence for each change
- * - verificationResult: Verification status
- * - blockedReason: Reason for failure (if not success)
  */
 router.post('/edit', upload.single('file'), async (req: Request, res: Response) => {
   const requestId = uuidv4();
@@ -99,17 +78,16 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        blockedReason: 'No file uploaded',
+        error: 'No file uploaded',
       });
     }
 
     const instruction = req.body.instruction as string;
     if (!instruction || instruction.trim().length === 0) {
-      // Clean up uploaded file
       fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        blockedReason: 'No instruction provided',
+        error: 'No instruction provided',
       });
     }
 
@@ -125,46 +103,45 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
       fs.unlinkSync(uploadedFilePath);
       return res.status(500).json({
         success: false,
-        blockedReason: 'OpenAI API key not configured',
+        error: 'OpenAI API key not configured',
       });
     }
 
     // Read the uploaded file
     const documentBuffer = fs.readFileSync(uploadedFilePath);
 
-    // Run the pipeline
-    const pipeline = new ContractEditPipeline({
+    // Use simplified editor
+    const editor = new SimpleContractEditor(
       openaiApiKey,
-      openaiModel: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
-      timeout: parseInt(process.env.PIPELINE_TIMEOUT || '120000', 10),
-    });
+      process.env.OPENAI_MODEL || 'gpt-4-turbo-preview'
+    );
 
-    const result = await pipeline.execute({
-      documentBuffer,
-      userInstruction: instruction,
-      fileName,
-    });
+    const result = await editor.edit(documentBuffer, instruction);
 
     // Clean up uploaded file
     fs.unlinkSync(uploadedFilePath);
     uploadedFilePath = undefined;
 
     // Build response
-    const response: EditResponse = {
+    const response: any = {
       success: result.success,
-      changeItems: result.changeItems.map(summarizeChangeItem),
-      qaEvidence: result.qaEvidence,
-      verificationResult: result.verificationResult,
-      blockedReason: result.blockedReason,
+      changes: result.changes.map(c => ({
+        description: c.description,
+        find: c.find,
+        replace: c.replace,
+        status: c.applied ? 'APPLIED' : 'NOT_FOUND',
+        count: c.count
+      })),
+      error: result.error
     };
 
-    if (result.success && result.documentBuffer) {
+    if (result.success && result.modifiedBuffer) {
       // Store the modified file for download
       const downloadId = uuidv4();
       const modifiedFileName = `edited_${fileName}`;
 
       processedFiles.set(downloadId, {
-        buffer: result.documentBuffer,
+        buffer: result.modifiedBuffer,
         fileName: modifiedFileName,
         expiry: Date.now() + 15 * 60 * 1000, // 15 minutes
       });
@@ -172,16 +149,15 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
       response.downloadUrl = `/api/download/${downloadId}`;
 
       console.log(`[${requestId}] Edit completed successfully in ${Date.now() - startTime}ms`);
+      console.log(`[${requestId}] Applied ${result.changes.filter(c => c.applied).length}/${result.changes.length} changes`);
     } else {
-      console.log(`[${requestId}] Edit blocked: ${result.blockedReason}`);
+      console.log(`[${requestId}] Edit failed: ${result.error}`);
     }
 
-    // Log the result
-    logPipelineResult(requestId, result);
-
     return res.json(response);
+
   } catch (error) {
-    console.error(`[${requestId}] Pipeline error:`, error);
+    console.error(`[${requestId}] Error:`, error);
 
     // Clean up uploaded file on error
     if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
@@ -190,14 +166,7 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
 
     return res.status(500).json({
       success: false,
-      blockedReason: error instanceof Error ? error.message : 'Internal server error',
-      changeItems: [],
-      qaEvidence: [],
-      verificationResult: {
-        status: 'FAIL',
-        checks: [],
-        overallError: 'Pipeline execution failed',
-      },
+      error: error instanceof Error ? error.message : 'Internal server error',
     });
   }
 });
@@ -247,49 +216,5 @@ router.get('/health', (req: Request, res: Response) => {
     openaiConfigured: !!process.env.OPENAI_API_KEY,
   });
 });
-
-/**
- * Summarize a change item for the response
- */
-function summarizeChangeItem(item: any): ChangeItemSummary {
-  return {
-    changeId: item.changeId,
-    description: item.description,
-    status: item.status,
-    beforeSnippet: item.editSpec?.beforeSnippet?.substring(0, 200),
-    afterSnippet: item.editSpec?.afterText?.substring(0, 200),
-  };
-}
-
-/**
- * Log pipeline result for debugging
- */
-function logPipelineResult(requestId: string, result: PipelineResponse): void {
-  console.log(`[${requestId}] Pipeline Result:`);
-  console.log(`  Success: ${result.success}`);
-  console.log(`  Changes: ${result.changeItems.length}`);
-
-  if (result.blockedReason) {
-    console.log(`  Blocked: ${result.blockedReason}`);
-  }
-
-  console.log(`  Verification: ${result.verificationResult.status}`);
-
-  for (const check of result.verificationResult.checks) {
-    console.log(`    ${check.checkName}: ${check.passed ? 'PASS' : 'FAIL'}`);
-    if (!check.passed) {
-      console.log(`      ${check.details}`);
-    }
-  }
-
-  // Log QA evidence
-  for (const ev of result.qaEvidence) {
-    console.log(`  Evidence ${ev.changeId}: ${ev.verificationStatus}`);
-    if (ev.failureClassification) {
-      console.log(`    Classification: ${ev.failureClassification}`);
-      console.log(`    Details: ${ev.failureDetails}`);
-    }
-  }
-}
 
 export default router;
