@@ -100,19 +100,53 @@ export async function parseDocx(buffer: Buffer): Promise<ParsedDocx> {
 }
 
 /**
+ * Find a key in an object that matches a pattern (handles namespace variations)
+ */
+function findKey(obj: Record<string, unknown>, patterns: string[]): string | undefined {
+  const keys = Object.keys(obj);
+  for (const pattern of patterns) {
+    const found = keys.find(k => k === pattern || k.endsWith(':' + pattern.split(':').pop()));
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
  * Get the document body from parsed XML
  */
 function getBody(documentXml: unknown): unknown {
   const doc = documentXml as Record<string, unknown>;
-  const document = doc['w:document'] as Record<string, unknown>[];
-  if (!document || !document[0]) {
+
+  // Try different possible document element names
+  const docKey = findKey(doc, ['w:document', 'document']);
+  if (!docKey) {
+    // Debug: log available keys
+    console.error('Available root keys:', Object.keys(doc));
     throw new Error('Invalid DOCX structure: w:document not found');
   }
-  const body = (document[0] as Record<string, unknown>)['w:body'];
-  if (!body || !(body as unknown[])[0]) {
+
+  const document = doc[docKey] as Record<string, unknown> | Record<string, unknown>[];
+  const docElement = Array.isArray(document) ? document[0] : document;
+
+  if (!docElement) {
+    throw new Error('Invalid DOCX structure: document element is empty');
+  }
+
+  // Try different possible body element names
+  const bodyKey = findKey(docElement as Record<string, unknown>, ['w:body', 'body']);
+  if (!bodyKey) {
+    console.error('Available document keys:', Object.keys(docElement as Record<string, unknown>));
     throw new Error('Invalid DOCX structure: w:body not found');
   }
-  return (body as unknown[])[0];
+
+  const body = (docElement as Record<string, unknown>)[bodyKey];
+  const bodyElement = Array.isArray(body) ? body[0] : body;
+
+  if (!bodyElement) {
+    throw new Error('Invalid DOCX structure: body element is empty');
+  }
+
+  return bodyElement;
 }
 
 /**

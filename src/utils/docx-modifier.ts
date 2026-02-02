@@ -458,14 +458,34 @@ async function applyTableCellEdit(
 }
 
 /**
+ * Find a key in an object that matches a pattern (handles namespace variations)
+ */
+function findKey(obj: Record<string, unknown>, patterns: string[]): string | undefined {
+  const keys = Object.keys(obj);
+  for (const pattern of patterns) {
+    const found = keys.find(k => k === pattern || k.endsWith(':' + pattern.split(':').pop()));
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
  * Get the body element from document XML
  */
 function getBodyFromXml(documentXml: unknown): Record<string, unknown[]> {
   const doc = documentXml as Record<string, unknown>;
-  const document = doc['w:document'] as unknown[];
-  const documentObj = document[0] as Record<string, unknown>;
-  const body = documentObj['w:body'] as unknown[];
-  return body[0] as Record<string, unknown[]>;
+
+  const docKey = findKey(doc, ['w:document', 'document']);
+  if (!docKey) throw new Error('w:document not found');
+
+  const document = doc[docKey];
+  const documentObj = (Array.isArray(document) ? document[0] : document) as Record<string, unknown>;
+
+  const bodyKey = findKey(documentObj, ['w:body', 'body']);
+  if (!bodyKey) throw new Error('w:body not found');
+
+  const body = documentObj[bodyKey];
+  return (Array.isArray(body) ? body[0] : body) as Record<string, unknown[]>;
 }
 
 /**
