@@ -136,7 +136,7 @@ async function interpretChanges(
     .map((p, i) => `[P${i}] ${p.text}`)
     .join('\n');
 
-  const prompt = `You are a document analysis expert. Your task is to analyze a change request and identify WHERE in the document changes should be made.
+  const prompt = `You are a document analysis expert. Analyze a change request and identify WHERE in the document changes should be made.
 
 DOCUMENT CONTENT:
 ${documentContext}
@@ -144,36 +144,49 @@ ${documentContext}
 USER REQUEST:
 ${userRequest}
 
-TASK:
-1. Decompose the user request into individual Change Items
-2. For each Change Item, identify up to 3 candidate locations in the document
-3. Provide exact text excerpts from the document for anchor matching
+CRITICAL RULES FOR DECOMPOSITION:
 
-RULES:
-- Do NOT assume any specific domain (company, address, contact, etc.)
-- Focus ONLY on structural/textual matching
-- If a change location is ambiguous, note the ambiguity
-- Excerpt text must be EXACT quotes from the document
+1. BLOCK REPLACEMENT PRINCIPLE:
+   - If user provides a BLOCK of related information (name, title, email, phone, address on multiple lines), treat it as ONE replacement unit
+   - Look for a SIMILAR BLOCK in the document that contains the same types of information
+   - Do NOT split into separate change items for each field
 
-Respond in JSON format:
+2. PARTY IDENTIFICATION:
+   - Korean contracts use "갑" (Party A/First Party) and "을" (Party B/Second Party)
+   - English contracts use "Party A/B", "First Party/Second Party", "Licensor/Licensee", etc.
+   - When user says "을 회사" or "Party B", find the party definition block for that party
+
+3. STRUCTURAL MATCHING:
+   - Match by STRUCTURE, not by individual values
+   - If document has: [Company Name] + [Person Name] + [Title] + [Email] + [Phone] + [Address]
+   - And user provides the same structure, it's ONE block replacement
+
+4. CONFIDENCE RULES:
+   - If you can identify the target party/section clearly: confidence >= 0.9
+   - If the document structure matches user's input structure: confidence >= 0.85
+   - Only mark ambiguity if there are truly multiple equally valid locations
+
+RESPOND IN JSON:
 {
   "changeItems": [
     {
       "id": "change_1",
-      "userRequestFragment": "the specific part of user request this addresses",
-      "intent": "replace" | "insert" | "delete" | "conditional",
+      "userRequestFragment": "full description of what user wants to change",
+      "intent": "replace",
       "candidates": [
         {
-          "locationDescription": "Paragraph 5, party definition section",
-          "excerptFromDocument": "exact text from document",
+          "locationDescription": "description of where in document",
+          "excerptFromDocument": "EXACT text from document that will be replaced",
           "rationale": "why this location matches",
           "confidence": 0.95
         }
       ],
-      "ambiguityNote": "optional - if location is unclear"
+      "ambiguityNote": "only if truly ambiguous"
     }
   ]
-}`;
+}
+
+IMPORTANT: If user provides multi-line contact/company information, create ONLY ONE change item that replaces the entire corresponding block in the document.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -211,36 +224,50 @@ CHANGE ITEMS:
 ${JSON.stringify(changeItems, null, 2)}
 
 TASK:
-For each Change Item, create ONE Edit Spec that defines:
-1. target_unit: What structural unit to modify (paragraph, table_cell, etc.)
-2. anchor_text: Exact text from document to locate the edit position
-3. boundary_start: Where the edit begins within the anchor
-4. boundary_end: Where the edit ends within the anchor
-5. edit_type: replace, insert_before, insert_after, or delete
-6. before_text: The exact text that will be replaced/deleted
-7. after_text: The new text to insert (empty for delete)
-8. constraints: What must be preserved
+For each Change Item, create ONE Edit Spec:
+1. target_unit: paragraph, table_cell, etc.
+2. anchor_text: Exact text from document to locate edit position
+3. boundary_start/end: Edit boundaries within anchor
+4. edit_type: replace, insert_before, insert_after, delete
+5. before_text: EXACT text being replaced (copy from document)
+6. after_text: New text to insert
+7. constraints: What to preserve
 
-RULES:
-- anchor_text MUST be an exact substring from the document
-- before_text MUST be an exact substring that exists in the document
-- Edits must be LOCAL - minimal scope needed
-- Do NOT make assumptions about document domain
-- If Change Item is ambiguous, set edit_type to "blocked" with reason
+CRITICAL RULES:
 
-Respond in JSON format:
+1. EXACT TEXT MATCHING:
+   - before_text MUST be copied EXACTLY from the document
+   - Include the FULL text block that needs replacement
+   - For multi-line party info, include ALL lines in before_text
+
+2. BLOCK REPLACEMENT:
+   - If Change Item represents a block of information (company + contact details)
+   - before_text = entire existing block from document
+   - after_text = entire new block from user request
+   - Preserve the same line break/separator style as original
+
+3. FORMATTING:
+   - Match the formatting style of the original document
+   - If original uses "E:" for email, keep that prefix
+   - If original uses line breaks, keep line breaks
+
+4. DO NOT BLOCK unless truly impossible:
+   - If candidate location is found with confidence >= 0.8, proceed
+   - Only use edit_type "blocked" if no valid location exists
+
+RESPOND IN JSON:
 {
   "editSpecs": [
     {
       "changeItemId": "change_1",
       "targetUnit": "paragraph",
-      "anchorText": "exact text from document containing the target",
-      "boundaryStart": "start marker within anchor",
-      "boundaryEnd": "end marker within anchor",
+      "anchorText": "larger context containing the target",
+      "boundaryStart": "start marker",
+      "boundaryEnd": "end marker",
       "editType": "replace",
-      "beforeText": "exact text being replaced",
-      "afterText": "new text",
-      "constraints": ["preserve paragraph structure", "maintain formatting"]
+      "beforeText": "EXACT text from document to replace",
+      "afterText": "new replacement text",
+      "constraints": ["preserve structure"]
     }
   ]
 }`;
@@ -619,12 +646,13 @@ export async function editContract(
   const changeItems = await interpretChanges(document, userRequest);
   timing.interpretMs = Date.now() - startInterpret;
 
-  // Check for blocked items
-  const blockedItems = changeItems.filter(
-    ci => ci.ambiguityNote || ci.candidates.every(c => c.confidence < 0.5)
+  // Check for blocked items - only block if NO candidate has sufficient confidence
+  // Having an ambiguity note is NOT enough to block if a high-confidence candidate exists
+  const hasValidCandidate = changeItems.some(ci =>
+    ci.candidates.some(c => c.confidence >= 0.7)
   );
 
-  if (blockedItems.length === changeItems.length && changeItems.length > 0) {
+  if (!hasValidCandidate && changeItems.length > 0) {
     return {
       userRequest,
       changeItems,
@@ -634,15 +662,20 @@ export async function editContract(
         status: 'BLOCKED',
         specResults: [],
         documentIntegrity: { valid: true, canOpen: true, structurePreserved: true },
-        summary: 'All changes blocked due to ambiguity',
+        summary: 'All changes blocked - no candidate location found with confidence >= 70%',
       },
       timing: { ...timing, totalMs: Date.now() - startTotal },
     };
   }
 
-  // Step 2: Generate edit specs
+  // Filter to only change items with valid candidates
+  const validChangeItems = changeItems.filter(ci =>
+    ci.candidates.some(c => c.confidence >= 0.7)
+  );
+
+  // Step 2: Generate edit specs (only for valid change items)
   const startSpec = Date.now();
-  const editSpecs = await generateEditSpecs(document, changeItems, userRequest);
+  const editSpecs = await generateEditSpecs(document, validChangeItems, userRequest);
   timing.specGenMs = Date.now() - startSpec;
 
   // Step 3: Execute edits
