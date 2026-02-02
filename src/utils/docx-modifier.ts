@@ -5,13 +5,10 @@
 
 import { parseStringPromise, Builder } from 'xml2js';
 import {
-  ParsedDocx,
-  DocxParagraph,
   ElementLocation,
   EditSpec,
-  ContractEditError,
 } from '../types';
-import { normalizeText } from './docx-parser';
+import { ParsedDocx, normalizeText } from './docx-parser';
 
 /**
  * Apply an edit spec to the document
