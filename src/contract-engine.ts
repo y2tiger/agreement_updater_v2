@@ -136,7 +136,7 @@ async function interpretChanges(
     .map((p, i) => `[P${i}] ${p.text}`)
     .join('\n');
 
-  const prompt = `You are a document analysis expert. Analyze a change request and identify WHERE in the document changes should be made.
+  const prompt = `You are a document analysis expert. Analyze a change request and identify ALL LOCATIONS in the document where changes should be made.
 
 DOCUMENT CONTENT:
 ${documentContext}
@@ -144,49 +144,79 @@ ${documentContext}
 USER REQUEST:
 ${userRequest}
 
-CRITICAL RULES FOR DECOMPOSITION:
+CRITICAL RULES:
 
-1. BLOCK REPLACEMENT PRINCIPLE:
-   - If user provides a BLOCK of related information (name, title, email, phone, address on multiple lines), treat it as ONE replacement unit
-   - Look for a SIMILAR BLOCK in the document that contains the same types of information
-   - Do NOT split into separate change items for each field
+1. FIND ALL OCCURRENCES:
+   When changing a party's information, you MUST find ALL locations where that party appears:
+   - TITLE PAGE: "Company A & Company B" header
+   - PARTY DEFINITION: The section defining parties with contact details
+   - SIGNATURE BLOCKS: At the end where parties sign
+   - ANY OTHER MENTIONS: Throughout the document
 
-2. PARTY IDENTIFICATION:
-   - Korean contracts use "갑" (Party A/First Party) and "을" (Party B/Second Party)
-   - English contracts use "Party A/B", "First Party/Second Party", "Licensor/Licensee", etc.
-   - When user says "을 회사" or "Party B", find the party definition block for that party
+2. CREATE SEPARATE CHANGE ITEMS FOR EACH LOCATION:
+   - change_1: Title page company name
+   - change_2: Party definition block (full contact info)
+   - change_3: Signature block
+   Each is a separate change item because they are in DIFFERENT paragraphs.
 
-3. STRUCTURAL MATCHING:
-   - Match by STRUCTURE, not by individual values
-   - If document has: [Company Name] + [Person Name] + [Title] + [Email] + [Phone] + [Address]
-   - And user provides the same structure, it's ONE block replacement
+3. PARTY IDENTIFICATION:
+   - Korean: "갑" (Party A), "을" (Party B)
+   - English: "Party A/B", "First Party/Second Party", "Licensor/Licensee", "Distributor"
+   - Identify which party the user wants to change
 
-4. CONFIDENCE RULES:
-   - If you can identify the target party/section clearly: confidence >= 0.9
-   - If the document structure matches user's input structure: confidence >= 0.85
-   - Only mark ambiguity if there are truly multiple equally valid locations
+4. EXTRACT MAPPING:
+   From user's new info, extract:
+   - Company name (e.g., "ENSURE")
+   - Person name (e.g., "LEE SANG HWA")
+   - Title (e.g., "Technical Support Team")
+
+   Then find where the OLD values appear in the document.
+
+5. CONFIDENCE:
+   - Clear match = 0.95
+   - Structural match = 0.90
+   - Only mark ambiguity if genuinely unclear
 
 RESPOND IN JSON:
 {
   "changeItems": [
     {
       "id": "change_1",
-      "userRequestFragment": "full description of what user wants to change",
+      "userRequestFragment": "Change title page company name",
       "intent": "replace",
-      "candidates": [
-        {
-          "locationDescription": "description of where in document",
-          "excerptFromDocument": "EXACT text from document that will be replaced",
-          "rationale": "why this location matches",
-          "confidence": 0.95
-        }
-      ],
-      "ambiguityNote": "only if truly ambiguous"
+      "candidates": [{
+        "locationDescription": "Title page - company name in header",
+        "excerptFromDocument": "EXACT text to replace",
+        "rationale": "Title mentions the party being changed",
+        "confidence": 0.95
+      }]
+    },
+    {
+      "id": "change_2",
+      "userRequestFragment": "Change party definition contact block",
+      "intent": "replace",
+      "candidates": [{
+        "locationDescription": "Party definition section",
+        "excerptFromDocument": "Full contact block text",
+        "rationale": "Main party definition with contact details",
+        "confidence": 0.95
+      }]
+    },
+    {
+      "id": "change_3",
+      "userRequestFragment": "Change signature block",
+      "intent": "replace",
+      "candidates": [{
+        "locationDescription": "Signature section at end",
+        "excerptFromDocument": "Company name and signer info",
+        "rationale": "Signature block for this party",
+        "confidence": 0.95
+      }]
     }
   ]
 }
 
-IMPORTANT: If user provides multi-line contact/company information, create ONLY ONE change item that replaces the entire corresponding block in the document.`;
+IMPORTANT: Create MULTIPLE change items for DIFFERENT locations. Do not merge locations that are in separate paragraphs.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -224,36 +254,29 @@ CHANGE ITEMS:
 ${JSON.stringify(changeItems, null, 2)}
 
 TASK:
-For each Change Item, create ONE Edit Spec:
-1. target_unit: paragraph, table_cell, etc.
-2. anchor_text: Exact text from document to locate edit position
-3. boundary_start/end: Edit boundaries within anchor
-4. edit_type: replace, insert_before, insert_after, delete
-5. before_text: EXACT text being replaced (copy from document)
-6. after_text: New text to insert
-7. constraints: What to preserve
+For EACH Change Item, create ONE Edit Spec with:
+- beforeText: EXACT text from document (copy precisely)
+- afterText: New replacement text
 
-CRITICAL RULES:
+LOCATION-SPECIFIC RULES:
 
-1. EXACT TEXT MATCHING:
-   - before_text MUST be copied EXACTLY from the document
-   - Include the FULL text block that needs replacement
-   - For multi-line party info, include ALL lines in before_text
+1. TITLE PAGE (company name in header like "Company A & Company B"):
+   - beforeText: just the old company name (e.g., "AKN Enterprise")
+   - afterText: just the new company name (e.g., "ENSURE")
 
-2. BLOCK REPLACEMENT:
-   - If Change Item represents a block of information (company + contact details)
-   - before_text = entire existing block from document
-   - after_text = entire new block from user request
-   - Preserve the same line break/separator style as original
+2. PARTY DEFINITION SECTION (full contact block):
+   - beforeText: entire block with company, person, title, email, phone, address
+   - afterText: user's complete new contact block
+   - Match the format/separators of the original
 
-3. FORMATTING:
-   - Match the formatting style of the original document
-   - If original uses "E:" for email, keep that prefix
-   - If original uses line breaks, keep line breaks
+3. SIGNATURE BLOCK:
+   - beforeText: "OldCompany\\nOldPerson / OldTitle"
+   - afterText: "NewCompany\\nNewPerson / NewTitle"
 
-4. DO NOT BLOCK unless truly impossible:
-   - If candidate location is found with confidence >= 0.8, proceed
-   - Only use edit_type "blocked" if no valid location exists
+CRITICAL:
+- before_text MUST be an EXACT substring from the document
+- Find the text in DOCUMENT CONTENT and copy it exactly
+- For title page, look for patterns like "SECULETTER & AKN Enterprise" or "Company A & Company B"
 
 RESPOND IN JSON:
 {
@@ -261,16 +284,18 @@ RESPOND IN JSON:
     {
       "changeItemId": "change_1",
       "targetUnit": "paragraph",
-      "anchorText": "larger context containing the target",
-      "boundaryStart": "start marker",
-      "boundaryEnd": "end marker",
+      "anchorText": "context around the target",
+      "boundaryStart": "",
+      "boundaryEnd": "",
       "editType": "replace",
-      "beforeText": "EXACT text from document to replace",
-      "afterText": "new replacement text",
-      "constraints": ["preserve structure"]
+      "beforeText": "EXACT text copied from document",
+      "afterText": "new text",
+      "constraints": []
     }
   ]
-}`;
+}
+
+Generate an editSpec for EACH changeItem. Do not skip any.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
