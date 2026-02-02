@@ -1,7 +1,10 @@
 /**
  * Edit API Routes
  *
- * Simplified contract editing using find/replace approach.
+ * Uses block-based editing approach:
+ * - ONE replace_block for party definition (not 6 field changes)
+ * - Paragraph-level normalized text matching
+ * - Explicit verification with required_tokens logging
  */
 
 import { Router, Request, Response } from 'express';
@@ -9,7 +12,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SimpleContractEditor } from '../simple-editor';
+import { BlockContractEditor } from '../block-editor';
 
 const router = Router();
 
@@ -58,17 +61,18 @@ setInterval(() => {
       processedFiles.delete(id);
     }
   }
-}, 60000); // Check every minute
+}, 60000);
 
 /**
  * POST /api/edit
  *
- * Upload a DOCX file and apply edits based on natural language instructions.
+ * Upload a DOCX file and apply block-based edits
  */
 router.post('/edit', upload.single('file'), async (req: Request, res: Response) => {
   const requestId = uuidv4();
   const startTime = Date.now();
 
+  console.log(`\n${'='.repeat(60)}`);
   console.log(`[${requestId}] Edit request received`);
 
   let uploadedFilePath: string | undefined;
@@ -95,7 +99,7 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
     const fileName = req.file.originalname;
 
     console.log(`[${requestId}] File: ${fileName}`);
-    console.log(`[${requestId}] Instruction: ${instruction}`);
+    console.log(`[${requestId}] Instruction: ${instruction.substring(0, 200)}...`);
 
     // Check for OpenAI API key
     const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -110,8 +114,8 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
     // Read the uploaded file
     const documentBuffer = fs.readFileSync(uploadedFilePath);
 
-    // Use simplified editor
-    const editor = new SimpleContractEditor(
+    // Use block editor
+    const editor = new BlockContractEditor(
       openaiApiKey,
       process.env.OPENAI_MODEL || 'gpt-4-turbo-preview'
     );
@@ -122,17 +126,38 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
     fs.unlinkSync(uploadedFilePath);
     uploadedFilePath = undefined;
 
+    // Log results
+    console.log(`[${requestId}] Pipeline Result:`);
+    console.log(`  Success: ${result.success}`);
+    console.log(`  Edit Result:`);
+    console.log(`    - Block Type: ${result.editResult.blockType}`);
+    console.log(`    - Anchor Found: ${result.editResult.anchorFound}`);
+    console.log(`    - Applied At: ${result.editResult.appliedAt || 'N/A'}`);
+    if (result.editResult.error) {
+      console.log(`    - Error: ${result.editResult.error}`);
+    }
+    console.log(`  Verification:`);
+    console.log(`    - Passed: ${result.verification.passed}`);
+    console.log(`    - Required Tokens: [${result.verification.requiredTokens.join(', ')}]`);
+    console.log(`    - Found Tokens: [${result.verification.foundTokens.join(', ')}]`);
+    console.log(`    - Missing Tokens: [${result.verification.missingTokens.join(', ')}]`);
+    console.log(`    - Details: ${result.verification.details}`);
+    console.log(`  Duration: ${Date.now() - startTime}ms`);
+    console.log('='.repeat(60));
+
     // Build response
-    const response: any = {
+    const response: Record<string, unknown> = {
       success: result.success,
-      changes: result.changes.map(c => ({
-        description: c.description,
-        find: c.find,
-        replace: c.replace,
-        status: c.applied ? 'APPLIED' : 'NOT_FOUND',
-        count: c.count
-      })),
-      error: result.error
+      editResult: {
+        blockType: result.editResult.blockType,
+        anchorFound: result.editResult.anchorFound,
+        appliedAt: result.editResult.appliedAt,
+        beforeText: result.editResult.beforeText.substring(0, 300) + (result.editResult.beforeText.length > 300 ? '...' : ''),
+        afterText: result.editResult.afterText.substring(0, 300) + (result.editResult.afterText.length > 300 ? '...' : ''),
+        error: result.editResult.error
+      },
+      verification: result.verification,
+      error: result.success ? undefined : (result.editResult.error || result.verification.details)
     };
 
     if (result.success && result.modifiedBuffer) {
@@ -147,11 +172,6 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
       });
 
       response.downloadUrl = `/api/download/${downloadId}`;
-
-      console.log(`[${requestId}] Edit completed successfully in ${Date.now() - startTime}ms`);
-      console.log(`[${requestId}] Applied ${result.changes.filter(c => c.applied).length}/${result.changes.length} changes`);
-    } else {
-      console.log(`[${requestId}] Edit failed: ${result.error}`);
     }
 
     return res.json(response);
@@ -173,8 +193,6 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
 
 /**
  * GET /api/download/:id
- *
- * Download a processed DOCX file.
  */
 router.get('/download/:id', (req: Request, res: Response) => {
   const { id } = req.params;
@@ -187,7 +205,6 @@ router.get('/download/:id', (req: Request, res: Response) => {
     });
   }
 
-  // Check expiry
   if (file.expiry < Date.now()) {
     processedFiles.delete(id);
     return res.status(410).json({
@@ -200,20 +217,18 @@ router.get('/download/:id', (req: Request, res: Response) => {
   res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
   res.send(file.buffer);
 
-  // Remove after download
   processedFiles.delete(id);
 });
 
 /**
  * GET /api/health
- *
- * Health check endpoint.
  */
 router.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     openaiConfigured: !!process.env.OPENAI_API_KEY,
+    approach: 'block-based-editing'
   });
 });
 

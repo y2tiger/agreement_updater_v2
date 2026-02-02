@@ -5,30 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agreement Updater v2 - 계약서 편집기</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       min-height: 100vh;
       color: #fff;
     }
-
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-
-    header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    header { text-align: center; margin-bottom: 40px; }
     h1 {
       font-size: 2.5rem;
       margin-bottom: 10px;
@@ -37,12 +22,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-
-    .subtitle {
-      color: #888;
-      font-size: 1.1rem;
-    }
-
+    .subtitle { color: #888; font-size: 1.1rem; }
     .card {
       background: rgba(255, 255, 255, 0.05);
       border-radius: 16px;
@@ -51,7 +31,6 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
     }
-
     .upload-area {
       border: 2px dashed rgba(255, 255, 255, 0.3);
       border-radius: 12px;
@@ -61,49 +40,14 @@
       transition: all 0.3s ease;
       margin-bottom: 20px;
     }
-
-    .upload-area:hover {
-      border-color: #00d4ff;
-      background: rgba(0, 212, 255, 0.05);
-    }
-
-    .upload-area.dragover {
-      border-color: #00d4ff;
-      background: rgba(0, 212, 255, 0.1);
-    }
-
-    .upload-area.has-file {
-      border-color: #00ff88;
-      background: rgba(0, 255, 136, 0.05);
-    }
-
-    .upload-icon {
-      font-size: 48px;
-      margin-bottom: 15px;
-    }
-
-    .upload-text {
-      color: #aaa;
-      margin-bottom: 10px;
-    }
-
-    .file-name {
-      color: #00ff88;
-      font-weight: 600;
-      margin-top: 10px;
-    }
-
-    #file-input {
-      display: none;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      color: #ccc;
-      font-weight: 500;
-    }
-
+    .upload-area:hover { border-color: #00d4ff; background: rgba(0, 212, 255, 0.05); }
+    .upload-area.dragover { border-color: #00d4ff; background: rgba(0, 212, 255, 0.1); }
+    .upload-area.has-file { border-color: #00ff88; background: rgba(0, 255, 136, 0.05); }
+    .upload-icon { font-size: 48px; margin-bottom: 15px; }
+    .upload-text { color: #aaa; margin-bottom: 10px; }
+    .file-name { color: #00ff88; font-weight: 600; margin-top: 10px; }
+    #file-input { display: none; }
+    label { display: block; margin-bottom: 8px; color: #ccc; font-weight: 500; }
     textarea {
       width: 100%;
       padding: 15px;
@@ -113,19 +57,12 @@
       color: #fff;
       font-size: 1rem;
       resize: vertical;
-      min-height: 120px;
+      min-height: 180px;
       font-family: inherit;
+      line-height: 1.5;
     }
-
-    textarea:focus {
-      outline: none;
-      border-color: #00d4ff;
-    }
-
-    textarea::placeholder {
-      color: #666;
-    }
-
+    textarea:focus { outline: none; border-color: #00d4ff; }
+    textarea::placeholder { color: #666; }
     .btn {
       display: inline-block;
       padding: 15px 40px;
@@ -138,121 +75,64 @@
       width: 100%;
       margin-top: 20px;
     }
-
-    .btn-primary {
-      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
-      color: #fff;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .btn-success {
-      background: linear-gradient(90deg, #00ff88, #00d4ff);
-      color: #1a1a2e;
-    }
-
-    .result {
-      display: none;
-      margin-top: 30px;
-    }
-
-    .result.show {
-      display: block;
-    }
-
-    .result-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .status-icon {
-      font-size: 24px;
-    }
-
-    .status-text {
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
-
-    .status-success {
-      color: #00ff88;
-    }
-
-    .status-error {
-      color: #ff4757;
-    }
-
-    .changes-list {
+    .btn-primary { background: linear-gradient(90deg, #00d4ff, #7b2cbf); color: #fff; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-success { background: linear-gradient(90deg, #00ff88, #00d4ff); color: #1a1a2e; }
+    .result { display: none; margin-top: 30px; }
+    .result.show { display: block; }
+    .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .status-icon { font-size: 24px; }
+    .status-text { font-size: 1.2rem; font-weight: 600; }
+    .status-success { color: #00ff88; }
+    .status-error { color: #ff4757; }
+    .block-change {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 20px;
       margin-top: 20px;
     }
-
-    .change-item {
+    .block-change h4 { color: #00d4ff; margin-bottom: 15px; }
+    .block-label { color: #888; font-size: 0.85rem; margin-bottom: 5px; text-transform: uppercase; }
+    .block-content {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+    }
+    .block-before { border-left: 3px solid #ff4757; color: #ffaaaa; }
+    .block-after { border-left: 3px solid #00ff88; color: #aaffaa; }
+    .verification-section {
       background: rgba(0, 0, 0, 0.2);
       border-radius: 8px;
       padding: 15px;
-      margin-bottom: 10px;
+      margin-top: 20px;
     }
-
-    .change-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .change-status {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .change-status.applied {
-      background: rgba(0, 255, 136, 0.2);
-      color: #00ff88;
-    }
-
-    .change-status.failed {
-      background: rgba(255, 71, 87, 0.2);
-      color: #ff4757;
-    }
-
-    .change-status.blocked {
-      background: rgba(255, 193, 7, 0.2);
-      color: #ffc107;
-    }
-
-    .snippet {
-      font-family: monospace;
-      font-size: 0.9rem;
-      padding: 10px;
+    .verification-section h5 { color: #ccc; margin-bottom: 15px; font-size: 1rem; }
+    .token-row { margin-bottom: 12px; }
+    .token-label { color: #888; font-size: 0.8rem; margin-bottom: 6px; }
+    .token-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .token {
+      padding: 4px 10px;
       border-radius: 4px;
-      margin-top: 8px;
-      overflow-x: auto;
+      font-size: 0.85rem;
+      font-family: monospace;
     }
-
-    .snippet-before {
-      background: rgba(255, 71, 87, 0.1);
-      border-left: 3px solid #ff4757;
+    .token-found { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
+    .token-missing { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+    .verification-details {
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 10px;
     }
-
-    .snippet-after {
-      background: rgba(0, 255, 136, 0.1);
-      border-left: 3px solid #00ff88;
-    }
-
     .error-message {
       background: rgba(255, 71, 87, 0.1);
       border: 1px solid rgba(255, 71, 87, 0.3);
@@ -260,17 +140,8 @@
       padding: 15px;
       color: #ff4757;
     }
-
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 40px;
-    }
-
-    .loading.show {
-      display: block;
-    }
-
+    .loading { display: none; text-align: center; padding: 40px; }
+    .loading.show { display: block; }
     .spinner {
       width: 50px;
       height: 50px;
@@ -280,15 +151,8 @@
       animation: spin 1s linear infinite;
       margin: 0 auto 20px;
     }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-      color: #888;
-    }
-
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: #888; }
     .phase-indicator {
       margin-top: 15px;
       padding: 10px;
@@ -296,43 +160,16 @@
       border-radius: 8px;
       font-size: 0.9rem;
     }
-
-    footer {
-      text-align: center;
-      margin-top: 40px;
-      color: #666;
-      font-size: 0.9rem;
-    }
-
-    .pipeline-info {
-      margin-top: 30px;
-      padding: 20px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-    }
-
-    .pipeline-info h3 {
-      margin-bottom: 15px;
-      color: #00d4ff;
-    }
-
-    .pipeline-steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 10px;
-    }
-
-    .pipeline-step {
-      padding: 10px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
+    footer { text-align: center; margin-top: 40px; color: #666; font-size: 0.9rem; }
+    .approach-badge {
+      display: inline-block;
+      padding: 5px 15px;
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 20px;
       font-size: 0.85rem;
-      color: #aaa;
-    }
-
-    .pipeline-step span {
       color: #00d4ff;
-      font-weight: 600;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -341,6 +178,7 @@
     <header>
       <h1>Agreement Updater v2</h1>
       <p class="subtitle">AI 기반 계약서 편집 시스템</p>
+      <span class="approach-badge">Block-based Editing</span>
     </header>
 
     <div class="card">
@@ -349,15 +187,21 @@
           <div class="upload-icon">📄</div>
           <div class="upload-text">DOCX 파일을 드래그하거나 클릭하여 업로드</div>
           <div class="file-name" id="file-name"></div>
-          <input type="file" id="file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <input type="file" id="file-input" accept=".docx">
         </div>
 
         <div>
           <label for="instruction">편집 지시사항</label>
-          <textarea
-            id="instruction"
-            placeholder="예: 계약 기간을 2026년 3월 1일부터 2027년 2월 28일까지로 변경해주세요.&#10;&#10;여러 변경사항을 입력할 수 있습니다:&#10;- 당사자 A의 이름을 '홍길동'으로 변경&#10;- 계약금액을 5,000만원으로 수정&#10;- 제3조 위약금 조항 삭제"
-          ></textarea>
+          <textarea id="instruction" placeholder="예시: 다음 정보로 계약 '을' 회사 정보를 변경해주세요
+
+회사명: ENSURE
+담당자: LEE SANG HWA
+직책: Technical Support Team
+이메일: lee.shwa@ensecure.co.kr
+전화번호: +62 822 2502 0056
+주소: Kirana Two Tower Office Lt.10 Unit A
+      Jl. Boulevard Timur No.88 5, Pegangsaan Dua
+      Kelapa Gading, Jakarta Utara, Indonesia"></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
@@ -369,9 +213,7 @@
     <div class="loading" id="loading">
       <div class="spinner"></div>
       <div class="loading-text">계약서를 분석하고 편집 중입니다...</div>
-      <div class="phase-indicator" id="phase-indicator">
-        OpenAI가 문서를 분석하고 있습니다...
-      </div>
+      <div class="phase-indicator" id="phase-indicator">문서를 분석하고 있습니다...</div>
     </div>
 
     <div class="result" id="result">
@@ -382,36 +224,44 @@
         </div>
 
         <div id="download-section" style="display: none;">
-          <a href="#" class="btn btn-success" id="download-btn">
-            📥 수정된 계약서 다운로드
-          </a>
-          <p style="margin-top: 10px; color: #888; font-size: 0.9rem;">
-            * 다운로드 링크는 15분 후 만료됩니다
-          </p>
+          <a href="#" class="btn btn-success" id="download-btn">📥 수정된 계약서 다운로드</a>
+          <p style="margin-top: 10px; color: #888; font-size: 0.9rem;">* 다운로드 링크는 15분 후 만료됩니다</p>
         </div>
 
         <div id="error-section" style="display: none;">
           <div class="error-message" id="error-message"></div>
         </div>
 
-        <div class="changes-list" id="changes-list"></div>
-      </div>
-    </div>
+        <div id="block-change-section" class="block-change" style="display: none;">
+          <h4>📝 변경된 블록</h4>
 
-    <div class="pipeline-info">
-      <h3>🔒 안전한 편집 파이프라인</h3>
-      <div class="pipeline-steps">
-        <div class="pipeline-step"><span>Phase 0</span> 문서 구조 분석</div>
-        <div class="pipeline-step"><span>Phase 1</span> 변경 항목 분해</div>
-        <div class="pipeline-step"><span>Phase 2</span> 대상 위치 탐색</div>
-        <div class="pipeline-step"><span>Phase 3</span> 편집 사양 확정</div>
-        <div class="pipeline-step"><span>Phase 4</span> 변경 적용</div>
-        <div class="pipeline-step"><span>Phase 5</span> 검증 및 확인</div>
+          <div class="block-label">BEFORE (원본)</div>
+          <div class="block-content block-before" id="before-text"></div>
+
+          <div class="block-label">AFTER (수정)</div>
+          <div class="block-content block-after" id="after-text"></div>
+        </div>
+
+        <div id="verification-section" class="verification-section" style="display: none;">
+          <h5>🔍 검증 결과</h5>
+
+          <div class="token-row">
+            <div class="token-label">필수 토큰 (Required Tokens)</div>
+            <div class="token-list" id="required-tokens"></div>
+          </div>
+
+          <div class="token-row">
+            <div class="token-label">누락 토큰 (Missing Tokens)</div>
+            <div class="token-list" id="missing-tokens"></div>
+          </div>
+
+          <div class="verification-details" id="verification-details"></div>
+        </div>
       </div>
     </div>
 
     <footer>
-      <p>OpenAI는 계획 수립에만 사용되며, 실제 문서 수정은 코드로 안전하게 처리됩니다.</p>
+      <p>당사자 정의 블록을 통째로 교체하는 방식으로 안정적인 편집을 수행합니다.</p>
       <p style="margin-top: 5px;">수정된 텍스트는 노란색으로 하이라이트 표시됩니다.</p>
     </footer>
   </div>
@@ -431,29 +281,18 @@
 
     // File upload handling
     uploadArea.addEventListener('click', () => fileInput.click());
-
     uploadArea.addEventListener('dragover', (e) => {
       e.preventDefault();
       uploadArea.classList.add('dragover');
     });
-
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('dragover');
-    });
-
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
     uploadArea.addEventListener('drop', (e) => {
       e.preventDefault();
       uploadArea.classList.remove('dragover');
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        handleFile(files[0]);
-      }
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
     });
-
     fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleFile(e.target.files[0]);
-      }
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
     });
 
     function handleFile(file) {
@@ -476,20 +315,19 @@
     // Form submission
     editForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-
       if (!selectedFile || !instruction.value.trim()) return;
 
-      // Show loading
       loading.classList.add('show');
       result.classList.remove('show');
       submitBtn.disabled = true;
 
-      // Simulate phase updates
       const phases = [
-        '문서를 분석하고 있습니다...',
-        'OpenAI가 변경 사항을 파악하고 있습니다...',
-        '찾기/바꾸기 작업을 수행하고 있습니다...',
-        '변경 사항을 적용하고 있습니다...'
+        '문서를 파싱하고 있습니다...',
+        '문단을 추출하고 있습니다...',
+        'OpenAI가 블록 교체 사양을 생성하고 있습니다...',
+        '대상 블록을 찾고 있습니다...',
+        '블록을 교체하고 있습니다...',
+        '변경 사항을 검증하고 있습니다...'
       ];
 
       let phaseIndex = 0;
@@ -498,28 +336,22 @@
           phaseIndicator.textContent = phases[phaseIndex];
           phaseIndex++;
         }
-      }, 3000);
+      }, 2500);
 
       try {
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('instruction', instruction.value.trim());
 
-        const response = await fetch('/api/edit', {
-          method: 'POST',
-          body: formData
-        });
-
+        const response = await fetch('/api/edit', { method: 'POST', body: formData });
         const data = await response.json();
+
         clearInterval(phaseInterval);
         displayResult(data);
 
       } catch (error) {
         clearInterval(phaseInterval);
-        displayResult({
-          success: false,
-          blockedReason: '서버 연결에 실패했습니다: ' + error.message
-        });
+        displayResult({ success: false, error: '서버 연결에 실패했습니다: ' + error.message });
       } finally {
         loading.classList.remove('show');
         submitBtn.disabled = false;
@@ -534,72 +366,77 @@
       const downloadSection = document.getElementById('download-section');
       const errorSection = document.getElementById('error-section');
       const errorMessage = document.getElementById('error-message');
-      const changesList = document.getElementById('changes-list');
+      const blockChangeSection = document.getElementById('block-change-section');
+      const verificationSection = document.getElementById('verification-section');
 
       if (data.success) {
         statusIcon.textContent = '✅';
         statusText.textContent = '편집이 완료되었습니다';
         statusText.className = 'status-text status-success';
-
         downloadSection.style.display = 'block';
         errorSection.style.display = 'none';
 
         const downloadBtn = document.getElementById('download-btn');
         downloadBtn.href = data.downloadUrl;
         downloadBtn.download = 'edited_contract.docx';
-
       } else {
         statusIcon.textContent = '❌';
         statusText.textContent = '편집 실패';
         statusText.className = 'status-text status-error';
-
         downloadSection.style.display = 'none';
         errorSection.style.display = 'block';
-        errorMessage.textContent = data.error || data.blockedReason || '알 수 없는 오류가 발생했습니다.';
+        errorMessage.textContent = data.error || '알 수 없는 오류가 발생했습니다.';
       }
 
-      // Display changes (new simplified format)
-      changesList.innerHTML = '';
-      const changes = data.changes || data.changeItems || [];
-
-      if (changes.length > 0) {
-        const title = document.createElement('h4');
-        title.textContent = '변경 항목';
-        title.style.marginBottom = '15px';
-        title.style.color = '#ccc';
-        changesList.appendChild(title);
-
-        changes.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'change-item';
-
-          const statusClass = item.status === 'APPLIED' ? 'applied' :
-                             item.status === 'NOT_FOUND' ? 'failed' : 'blocked';
-
-          // Handle both old and new format
-          const find = item.find || item.beforeSnippet || '';
-          const replace = item.replace || item.afterSnippet || '';
-          const description = item.description || item.changeId || '';
-          const count = item.count !== undefined ? ` (${item.count}회)` : '';
-
-          div.innerHTML = `
-            <div class="change-header">
-              <span>${escapeHtml(description)}</span>
-              <span class="change-status ${statusClass}">${item.status}${count}</span>
-            </div>
-            ${find ? `<div class="snippet snippet-before">찾기: ${escapeHtml(find)}</div>` : ''}
-            ${replace ? `<div class="snippet snippet-after">바꾸기: ${escapeHtml(replace)}</div>` : ''}
-          `;
-          changesList.appendChild(div);
-        });
+      // Display block change
+      if (data.editResult && (data.editResult.beforeText || data.editResult.afterText)) {
+        blockChangeSection.style.display = 'block';
+        document.getElementById('before-text').textContent = data.editResult.beforeText || '(없음)';
+        document.getElementById('after-text').textContent = data.editResult.afterText || '(없음)';
+      } else {
+        blockChangeSection.style.display = 'none';
       }
 
-    }
+      // Display verification
+      if (data.verification) {
+        verificationSection.style.display = 'block';
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+        const requiredTokensEl = document.getElementById('required-tokens');
+        const missingTokensEl = document.getElementById('missing-tokens');
+        const detailsEl = document.getElementById('verification-details');
+
+        requiredTokensEl.innerHTML = '';
+        missingTokensEl.innerHTML = '';
+
+        const requiredTokens = data.verification.requiredTokens || [];
+        const missingTokens = data.verification.missingTokens || [];
+
+        if (requiredTokens.length > 0) {
+          requiredTokens.forEach(token => {
+            const span = document.createElement('span');
+            span.className = 'token ' + (missingTokens.includes(token) ? 'token-missing' : 'token-found');
+            span.textContent = token;
+            requiredTokensEl.appendChild(span);
+          });
+        } else {
+          requiredTokensEl.innerHTML = '<span style="color: #888;">없음</span>';
+        }
+
+        if (missingTokens.length > 0) {
+          missingTokens.forEach(token => {
+            const span = document.createElement('span');
+            span.className = 'token token-missing';
+            span.textContent = token;
+            missingTokensEl.appendChild(span);
+          });
+        } else {
+          missingTokensEl.innerHTML = '<span style="color: #00ff88;">없음 - 모든 토큰 검증됨 ✓</span>';
+        }
+
+        detailsEl.textContent = data.verification.details || 'No details';
+      } else {
+        verificationSection.style.display = 'none';
+      }
     }
   </script>
 </body>
