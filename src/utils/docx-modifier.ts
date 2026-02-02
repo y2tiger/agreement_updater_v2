@@ -53,10 +53,13 @@ async function applyParagraphEdit(
   location: ElementLocation
 ): Promise<{ success: boolean; modifiedXml: unknown; error?: string }> {
   const body = getBodyFromXml(documentXml);
-  const paragraphs = body['w:p'] as unknown[];
+
+  // Find paragraph key with namespace flexibility
+  const pKey = findKey(body as Record<string, unknown>, ['w:p', 'p']) || 'w:p';
+  const paragraphs = (body[pKey] || []) as unknown[];
 
   if (location.paragraphIndex === undefined || location.paragraphIndex >= paragraphs.length) {
-    return { success: false, modifiedXml: documentXml, error: 'Invalid paragraph index' };
+    return { success: false, modifiedXml: documentXml, error: `Invalid paragraph index: ${location.paragraphIndex}, total: ${paragraphs.length}` };
   }
 
   const paragraph = paragraphs[location.paragraphIndex] as Record<string, unknown[]>;
@@ -84,7 +87,8 @@ function replaceInParagraph(
   editSpec: EditSpec,
   location: ElementLocation
 ): { success: boolean; modifiedXml: unknown; error?: string } {
-  const runs = paragraph['w:r'] || [];
+  const runKey = findKey(paragraph as Record<string, unknown>, ['w:r', 'r']) || 'w:r';
+  const runs = paragraph[runKey] || [];
 
   if (editSpec.boundaries.fullElement) {
     // Replace the entire paragraph content
@@ -114,7 +118,8 @@ function replaceInParagraph(
     editSpec.highlight
   );
 
-  paragraph['w:r'] = newRuns;
+  // Use the same key we found earlier
+  paragraph[runKey] = newRuns;
 
   return { success: true, modifiedXml: documentXml };
 }
@@ -128,17 +133,19 @@ function replaceEntireParagraph(
   editSpec: EditSpec
 ): { success: boolean; modifiedXml: unknown; error?: string } {
   // Preserve paragraph properties
-  const pPr = paragraph['w:pPr'];
+  const pPrKey = findKey(paragraph as Record<string, unknown>, ['w:pPr', 'pPr']) || 'w:pPr';
+  const pPr = paragraph[pPrKey];
 
   // Create a new run with the replacement text and highlight
   const newRun = createHighlightedRun(editSpec.afterText, editSpec.highlight);
 
   // Replace all runs with the new run
-  paragraph['w:r'] = [newRun];
+  const runKey = findKey(paragraph as Record<string, unknown>, ['w:r', 'r']) || 'w:r';
+  paragraph[runKey] = [newRun];
 
   // Restore paragraph properties
   if (pPr) {
-    paragraph['w:pPr'] = pPr;
+    paragraph[pPrKey] = pPr;
   }
 
   return { success: true, modifiedXml: documentXml };
@@ -422,28 +429,33 @@ async function applyTableCellEdit(
   location: ElementLocation
 ): Promise<{ success: boolean; modifiedXml: unknown; error?: string }> {
   const body = getBodyFromXml(documentXml);
-  const tables = body['w:tbl'] as unknown[];
+
+  const tblKey = findKey(body as Record<string, unknown>, ['w:tbl', 'tbl']) || 'w:tbl';
+  const tables = (body[tblKey] || []) as unknown[];
 
   if (location.tableIndex === undefined || location.tableIndex >= tables.length) {
     return { success: false, modifiedXml: documentXml, error: 'Invalid table index' };
   }
 
   const table = tables[location.tableIndex] as Record<string, unknown[]>;
-  const rows = table['w:tr'] || [];
+  const trKey = findKey(table as Record<string, unknown>, ['w:tr', 'tr']) || 'w:tr';
+  const rows = (table[trKey] || []) as unknown[];
 
   if (location.rowIndex === undefined || location.rowIndex >= rows.length) {
     return { success: false, modifiedXml: documentXml, error: 'Invalid row index' };
   }
 
   const row = rows[location.rowIndex] as Record<string, unknown[]>;
-  const cells = row['w:tc'] || [];
+  const tcKey = findKey(row as Record<string, unknown>, ['w:tc', 'tc']) || 'w:tc';
+  const cells = (row[tcKey] || []) as unknown[];
 
   if (location.cellIndex === undefined || location.cellIndex >= cells.length) {
     return { success: false, modifiedXml: documentXml, error: 'Invalid cell index' };
   }
 
   const cell = cells[location.cellIndex] as Record<string, unknown[]>;
-  const cellParagraphs = cell['w:p'] || [];
+  const pKey = findKey(cell as Record<string, unknown>, ['w:p', 'p']) || 'w:p';
+  const cellParagraphs = (cell[pKey] || []) as unknown[];
 
   // For simplicity, apply the edit to the first paragraph in the cell
   if (cellParagraphs.length === 0) {
@@ -503,17 +515,21 @@ export function verifyDocumentIntegrity(documentXml: unknown): { valid: boolean;
   try {
     // Check basic structure
     const doc = documentXml as Record<string, unknown>;
-    if (!doc['w:document']) {
+
+    const docKey = findKey(doc, ['w:document', 'document']);
+    if (!docKey) {
       return { valid: false, error: 'Missing w:document root element' };
     }
 
-    const document = doc['w:document'] as unknown[];
-    if (!document[0]) {
+    const document = doc[docKey];
+    const documentObj = Array.isArray(document) ? document[0] : document;
+
+    if (!documentObj) {
       return { valid: false, error: 'Empty w:document element' };
     }
 
-    const documentObj = document[0] as Record<string, unknown>;
-    if (!documentObj['w:body']) {
+    const bodyKey = findKey(documentObj as Record<string, unknown>, ['w:body', 'body']);
+    if (!bodyKey) {
       return { valid: false, error: 'Missing w:body element' };
     }
 
