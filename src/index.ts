@@ -14,6 +14,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import * as fs from 'fs';
+import * as path from 'path';
 import editRoutes from './routes/edit';
 
 // Load environment variables
@@ -26,6 +27,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Ensure /tmp directory exists
 const tmpDir = '/tmp/contract-edits';
 if (!fs.existsSync(tmpDir)) {
@@ -35,8 +39,8 @@ if (!fs.existsSync(tmpDir)) {
 // Routes
 app.use('/api', editRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
+// API info endpoint
+app.get('/api/info', (req, res) => {
   res.json({
     name: 'Agreement Updater v2',
     version: '1.0.0',

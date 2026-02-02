@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agreement Updater v2 - 계약서 편집기</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 1.1rem;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .upload-area {
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 20px;
+    }
+
+    .upload-area:hover {
+      border-color: #00d4ff;
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    .upload-area.dragover {
+      border-color: #00d4ff;
+      background: rgba(0, 212, 255, 0.1);
+    }
+
+    .upload-area.has-file {
+      border-color: #00ff88;
+      background: rgba(0, 255, 136, 0.05);
+    }
+
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+
+    .upload-text {
+      color: #aaa;
+      margin-bottom: 10px;
+    }
+
+    .file-name {
+      color: #00ff88;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #ccc;
+      font-weight: 500;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 1rem;
+      resize: vertical;
+      min-height: 120px;
+      font-family: inherit;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+
+    textarea::placeholder {
+      color: #666;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 15px 40px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-success {
+      background: linear-gradient(90deg, #00ff88, #00d4ff);
+      color: #1a1a2e;
+    }
+
+    .result {
+      display: none;
+      margin-top: 30px;
+    }
+
+    .result.show {
+      display: block;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .status-icon {
+      font-size: 24px;
+    }
+
+    .status-text {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .status-success {
+      color: #00ff88;
+    }
+
+    .status-error {
+      color: #ff4757;
+    }
+
+    .changes-list {
+      margin-top: 20px;
+    }
+
+    .change-item {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+
+    .change-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .change-status {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .change-status.applied {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+    }
+
+    .change-status.failed {
+      background: rgba(255, 71, 87, 0.2);
+      color: #ff4757;
+    }
+
+    .change-status.blocked {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+    }
+
+    .snippet {
+      font-family: monospace;
+      font-size: 0.9rem;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+
+    .snippet-before {
+      background: rgba(255, 71, 87, 0.1);
+      border-left: 3px solid #ff4757;
+    }
+
+    .snippet-after {
+      background: rgba(0, 255, 136, 0.1);
+      border-left: 3px solid #00ff88;
+    }
+
+    .error-message {
+      background: rgba(255, 71, 87, 0.1);
+      border: 1px solid rgba(255, 71, 87, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      color: #ff4757;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading.show {
+      display: block;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: #888;
+    }
+
+    .phase-indicator {
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .pipeline-info {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+
+    .pipeline-info h3 {
+      margin-bottom: 15px;
+      color: #00d4ff;
+    }
+
+    .pipeline-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .pipeline-step {
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    .pipeline-step span {
+      color: #00d4ff;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Agreement Updater v2</h1>
+      <p class="subtitle">AI 기반 계약서 편집 시스템</p>
+    </header>
+
+    <div class="card">
+      <form id="edit-form">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-icon">📄</div>
+          <div class="upload-text">DOCX 파일을 드래그하거나 클릭하여 업로드</div>
+          <div class="file-name" id="file-name"></div>
+          <input type="file" id="file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+        </div>
+
+        <div>
+          <label for="instruction">편집 지시사항</label>
+          <textarea
+            id="instruction"
+            placeholder="예: 계약 기간을 2026년 3월 1일부터 2027년 2월 28일까지로 변경해주세요.&#10;&#10;여러 변경사항을 입력할 수 있습니다:&#10;- 당사자 A의 이름을 '홍길동'으로 변경&#10;- 계약금액을 5,000만원으로 수정&#10;- 제3조 위약금 조항 삭제"
+          ></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
+          편집 시작
+        </button>
+      </form>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">계약서를 분석하고 편집 중입니다...</div>
+      <div class="phase-indicator" id="phase-indicator">
+        OpenAI가 문서를 분석하고 있습니다...
+      </div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="card">
+        <div class="result-header">
+          <span class="status-icon" id="status-icon"></span>
+          <span class="status-text" id="status-text"></span>
+        </div>
+
+        <div id="download-section" style="display: none;">
+          <a href="#" class="btn btn-success" id="download-btn">
+            📥 수정된 계약서 다운로드
+          </a>
+          <p style="margin-top: 10px; color: #888; font-size: 0.9rem;">
+            * 다운로드 링크는 15분 후 만료됩니다
+          </p>
+        </div>
+
+        <div id="error-section" style="display: none;">
+          <div class="error-message" id="error-message"></div>
+        </div>
+
+        <div class="changes-list" id="changes-list"></div>
+      </div>
+    </div>
+
+    <div class="pipeline-info">
+      <h3>🔒 안전한 편집 파이프라인</h3>
+      <div class="pipeline-steps">
+        <div class="pipeline-step"><span>Phase 0</span> 문서 구조 분석</div>
+        <div class="pipeline-step"><span>Phase 1</span> 변경 항목 분해</div>
+        <div class="pipeline-step"><span>Phase 2</span> 대상 위치 탐색</div>
+        <div class="pipeline-step"><span>Phase 3</span> 편집 사양 확정</div>
+        <div class="pipeline-step"><span>Phase 4</span> 변경 적용</div>
+        <div class="pipeline-step"><span>Phase 5</span> 검증 및 확인</div>
+      </div>
+    </div>
+
+    <footer>
+      <p>OpenAI는 계획 수립에만 사용되며, 실제 문서 수정은 코드로 안전하게 처리됩니다.</p>
+      <p style="margin-top: 5px;">수정된 텍스트는 노란색으로 하이라이트 표시됩니다.</p>
+    </footer>
+  </div>
+
+  <script>
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const fileName = document.getElementById('file-name');
+    const instruction = document.getElementById('instruction');
+    const submitBtn = document.getElementById('submit-btn');
+    const editForm = document.getElementById('edit-form');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const phaseIndicator = document.getElementById('phase-indicator');
+
+    let selectedFile = null;
+
+    // File upload handling
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      if (!file.name.endsWith('.docx')) {
+        alert('DOCX 파일만 업로드 가능합니다.');
+        return;
+      }
+      selectedFile = file;
+      fileName.textContent = `📎 ${file.name}`;
+      uploadArea.classList.add('has-file');
+      updateSubmitButton();
+    }
+
+    instruction.addEventListener('input', updateSubmitButton);
+
+    function updateSubmitButton() {
+      submitBtn.disabled = !(selectedFile && instruction.value.trim());
+    }
+
+    // Form submission
+    editForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!selectedFile || !instruction.value.trim()) return;
+
+      // Show loading
+      loading.classList.add('show');
+      result.classList.remove('show');
+      submitBtn.disabled = true;
+
+      // Simulate phase updates
+      const phases = [
+        'Phase 0: 문서 구조를 분석하고 있습니다...',
+        'Phase 1: 변경 항목을 분해하고 있습니다...',
+        'Phase 2: 대상 위치를 탐색하고 있습니다...',
+        'Phase 3: 편집 사양을 확정하고 있습니다...',
+        'Phase 4: 변경 사항을 적용하고 있습니다...',
+        'Phase 5: 결과를 검증하고 있습니다...'
+      ];
+
+      let phaseIndex = 0;
+      const phaseInterval = setInterval(() => {
+        if (phaseIndex < phases.length) {
+          phaseIndicator.textContent = phases[phaseIndex];
+          phaseIndex++;
+        }
+      }, 3000);
+
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('instruction', instruction.value.trim());
+
+        const response = await fetch('/api/edit', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        clearInterval(phaseInterval);
+        displayResult(data);
+
+      } catch (error) {
+        clearInterval(phaseInterval);
+        displayResult({
+          success: false,
+          blockedReason: '서버 연결에 실패했습니다: ' + error.message
+        });
+      } finally {
+        loading.classList.remove('show');
+        submitBtn.disabled = false;
+      }
+    });
+
+    function displayResult(data) {
+      result.classList.add('show');
+
+      const statusIcon = document.getElementById('status-icon');
+      const statusText = document.getElementById('status-text');
+      const downloadSection = document.getElementById('download-section');
+      const errorSection = document.getElementById('error-section');
+      const errorMessage = document.getElementById('error-message');
+      const changesList = document.getElementById('changes-list');
+
+      if (data.success) {
+        statusIcon.textContent = '✅';
+        statusText.textContent = '편집이 완료되었습니다';
+        statusText.className = 'status-text status-success';
+
+        downloadSection.style.display = 'block';
+        errorSection.style.display = 'none';
+
+        const downloadBtn = document.getElementById('download-btn');
+        downloadBtn.href = data.downloadUrl;
+        downloadBtn.download = 'edited_contract.docx';
+
+      } else {
+        statusIcon.textContent = '❌';
+        statusText.textContent = '편집이 차단되었습니다';
+        statusText.className = 'status-text status-error';
+
+        downloadSection.style.display = 'none';
+        errorSection.style.display = 'block';
+        errorMessage.textContent = data.blockedReason || '알 수 없는 오류가 발생했습니다.';
+      }
+
+      // Display change items
+      changesList.innerHTML = '';
+      if (data.changeItems && data.changeItems.length > 0) {
+        const title = document.createElement('h4');
+        title.textContent = '변경 항목';
+        title.style.marginBottom = '15px';
+        title.style.color = '#ccc';
+        changesList.appendChild(title);
+
+        data.changeItems.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'change-item';
+
+          const statusClass = item.status === 'APPLIED' ? 'applied' :
+                             item.status === 'FAILED' ? 'failed' : 'blocked';
+
+          div.innerHTML = `
+            <div class="change-header">
+              <span>${item.description || item.changeId}</span>
+              <span class="change-status ${statusClass}">${item.status}</span>
+            </div>
+            ${item.beforeSnippet ? `<div class="snippet snippet-before">- ${escapeHtml(item.beforeSnippet)}</div>` : ''}
+            ${item.afterSnippet ? `<div class="snippet snippet-after">+ ${escapeHtml(item.afterSnippet)}</div>` : ''}
+          `;
+          changesList.appendChild(div);
+        });
+      }
+
+      // Display QA evidence if available
+      if (data.qaEvidence && data.qaEvidence.length > 0) {
+        const failedEvidence = data.qaEvidence.filter(e => e.verificationStatus === 'FAIL');
+        if (failedEvidence.length > 0) {
+          const title = document.createElement('h4');
+          title.textContent = '실패 상세';
+          title.style.marginTop = '20px';
+          title.style.marginBottom = '15px';
+          title.style.color = '#ff4757';
+          changesList.appendChild(title);
+
+          failedEvidence.forEach(ev => {
+            const div = document.createElement('div');
+            div.className = 'change-item';
+            div.innerHTML = `
+              <div class="change-header">
+                <span>${ev.failureClassification || 'UNKNOWN'}</span>
+              </div>
+              <p style="color: #aaa; font-size: 0.9rem;">${escapeHtml(ev.failureDetails || '')}</p>
+            `;
+            changesList.appendChild(div);
+          });
+        }
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
