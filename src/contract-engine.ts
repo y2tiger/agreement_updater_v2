@@ -670,11 +670,11 @@ export async function editContract(
 
   // Check for blocked items - only block if NO candidate has sufficient confidence
   // Having an ambiguity note is NOT enough to block if a high-confidence candidate exists
-  const hasValidCandidate = changeItems.some(ci =>
-    ci.candidates.some(c => c.confidence >= 0.7)
+  const hasValidCandidate = changeItems && changeItems.length > 0 && changeItems.some(ci =>
+    ci.candidates && ci.candidates.some(c => c.confidence >= 0.7)
   );
 
-  if (!hasValidCandidate && changeItems.length > 0) {
+  if (!hasValidCandidate && changeItems && changeItems.length > 0) {
     return {
       userRequest,
       changeItems,
@@ -691,8 +691,8 @@ export async function editContract(
   }
 
   // Filter to only change items with valid candidates
-  const validChangeItems = changeItems.filter(ci =>
-    ci.candidates.some(c => c.confidence >= 0.7)
+  const validChangeItems = (changeItems || []).filter(ci =>
+    ci.candidates && ci.candidates.some(c => c.confidence >= 0.7)
   );
 
   // Step 2: Generate edit specs (only for valid change items)
