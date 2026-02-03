@@ -144,79 +144,48 @@ ${documentContext}
 USER REQUEST:
 ${userRequest}
 
+TASK: Find all locations in the document that need to be changed.
+
 CRITICAL RULES:
 
-1. FIND ALL OCCURRENCES:
-   When changing a party's information, you MUST find ALL locations where that party appears:
-   - TITLE PAGE: "Company A & Company B" header
-   - PARTY DEFINITION: The section defining parties with contact details
-   - SIGNATURE BLOCKS: At the end where parties sign
-   - ANY OTHER MENTIONS: Throughout the document
+1. FIND ALL OCCURRENCES of the party being changed:
+   - TITLE PAGE: Look for company names in the header/title
+   - PARTY DEFINITION: Section with contact details (email, phone, address)
+   - SIGNATURE BLOCKS: Near the end, where parties sign
 
-2. CREATE SEPARATE CHANGE ITEMS FOR EACH LOCATION:
-   - change_1: Title page company name
-   - change_2: Party definition block (full contact info)
-   - change_3: Signature block
-   Each is a separate change item because they are in DIFFERENT paragraphs.
+2. excerptFromDocument MUST BE EXACT TEXT:
+   - You MUST copy text EXACTLY as it appears in DOCUMENT CONTENT above
+   - Look at the [P0], [P1], [P2]... sections and copy the relevant text
+   - Do NOT write descriptions like "Company name and signer info"
+   - Do NOT paraphrase - copy the actual characters from the document
 
 3. PARTY IDENTIFICATION:
-   - Korean: "갑" (Party A), "을" (Party B)
-   - English: "Party A/B", "First Party/Second Party", "Licensor/Licensee", "Distributor"
-   - Identify which party the user wants to change
+   - "을" or "Party B" = the second party (often Distributor/Licensee)
+   - "갑" or "Party A" = the first party (often Licensor/Provider)
 
-4. EXTRACT MAPPING:
-   From user's new info, extract:
-   - Company name (e.g., "ENSURE")
-   - Person name (e.g., "LEE SANG HWA")
-   - Title (e.g., "Technical Support Team")
-
-   Then find where the OLD values appear in the document.
-
-5. CONFIDENCE:
-   - Clear match = 0.95
-   - Structural match = 0.90
-   - Only mark ambiguity if genuinely unclear
+4. For each location, provide:
+   - locationDescription: describe where it is
+   - excerptFromDocument: COPY-PASTE the actual text from document that will be replaced
+   - This text must exist verbatim in the DOCUMENT CONTENT section above
 
 RESPOND IN JSON:
 {
   "changeItems": [
     {
       "id": "change_1",
-      "userRequestFragment": "Change title page company name",
+      "userRequestFragment": "what this change does",
       "intent": "replace",
       "candidates": [{
-        "locationDescription": "Title page - company name in header",
-        "excerptFromDocument": "EXACT text to replace",
-        "rationale": "Title mentions the party being changed",
-        "confidence": 0.95
-      }]
-    },
-    {
-      "id": "change_2",
-      "userRequestFragment": "Change party definition contact block",
-      "intent": "replace",
-      "candidates": [{
-        "locationDescription": "Party definition section",
-        "excerptFromDocument": "Full contact block text",
-        "rationale": "Main party definition with contact details",
-        "confidence": 0.95
-      }]
-    },
-    {
-      "id": "change_3",
-      "userRequestFragment": "Change signature block",
-      "intent": "replace",
-      "candidates": [{
-        "locationDescription": "Signature section at end",
-        "excerptFromDocument": "Company name and signer info",
-        "rationale": "Signature block for this party",
+        "locationDescription": "where in document",
+        "excerptFromDocument": "<<<COPY EXACT TEXT FROM DOCUMENT HERE>>>",
+        "rationale": "why this location",
         "confidence": 0.95
       }]
     }
   ]
 }
 
-IMPORTANT: Create MULTIPLE change items for DIFFERENT locations. Do not merge locations that are in separate paragraphs.`;
+REMINDER: excerptFromDocument must be COPIED from DOCUMENT CONTENT, not generated or paraphrased.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -253,30 +222,30 @@ ${userRequest}
 CHANGE ITEMS:
 ${JSON.stringify(changeItems, null, 2)}
 
-TASK:
-For EACH Change Item, create ONE Edit Spec with:
-- beforeText: EXACT text from document (copy precisely)
-- afterText: New replacement text
+TASK: For EACH Change Item, find the EXACT text in the document and create an Edit Spec.
 
-LOCATION-SPECIFIC RULES:
+CRITICAL - beforeText MUST BE EXACT:
+- Search through the DOCUMENT CONTENT above
+- Find the paragraph [P#] that contains the text to change
+- COPY the text exactly as it appears - character for character
+- Do NOT write placeholders or descriptions
 
-1. TITLE PAGE (company name in header like "Company A & Company B"):
-   - beforeText: just the old company name (e.g., "AKN Enterprise")
-   - afterText: just the new company name (e.g., "ENSURE")
+HOW TO FIND TEXT FOR EACH LOCATION:
 
-2. PARTY DEFINITION SECTION (full contact block):
-   - beforeText: entire block with company, person, title, email, phone, address
-   - afterText: user's complete new contact block
-   - Match the format/separators of the original
+1. TITLE PAGE: Look in early paragraphs [P0]-[P20] for company names with "&" or "and"
+   Example: If you see [P5] "SECULETTER&AKN Enterprise", beforeText = "AKN Enterprise"
 
-3. SIGNATURE BLOCK:
-   - beforeText: "OldCompany\\nOldPerson / OldTitle"
-   - afterText: "NewCompany\\nNewPerson / NewTitle"
+2. PARTY DEFINITION: Look for paragraphs with email (@), phone numbers, addresses
+   Copy the full block of contact information
 
-CRITICAL:
-- before_text MUST be an EXACT substring from the document
-- Find the text in DOCUMENT CONTENT and copy it exactly
-- For title page, look for patterns like "SECULETTER & AKN Enterprise" or "Company A & Company B"
+3. SIGNATURE BLOCK: Look in later paragraphs [P200+] for patterns like:
+   "CompanyName" followed by "PersonName / Title" or "PersonName, Title"
+   Copy both the company name line and the person/title line
+
+FOR EACH EDIT SPEC:
+- anchorText: Copy a larger context from the document (helps locate the edit)
+- beforeText: COPY EXACT text from document that will be replaced
+- afterText: The new text based on user's request
 
 RESPOND IN JSON:
 {
@@ -284,12 +253,12 @@ RESPOND IN JSON:
     {
       "changeItemId": "change_1",
       "targetUnit": "paragraph",
-      "anchorText": "context around the target",
+      "anchorText": "<<<COPY from document - larger context>>>",
       "boundaryStart": "",
       "boundaryEnd": "",
       "editType": "replace",
-      "beforeText": "EXACT text copied from document",
-      "afterText": "new text",
+      "beforeText": "<<<COPY from document - exact text to replace>>>",
+      "afterText": "<<<new text from user request>>>",
       "constraints": []
     }
   ]
