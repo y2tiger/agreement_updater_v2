@@ -137,110 +137,123 @@ router.post('/edit', upload.single('file'), async (req: Request, res: Response) 
 
     // 1) Change Items
     console.log('\n[1] CHANGE ITEMS (Request Decomposition):');
-    for (const item of result.changeItems) {
-      console.log(`  - ID: ${item.id}`);
-      console.log(`    Intent: ${item.intent}`);
-      console.log(`    Fragment: "${item.userRequestFragment}"`);
-      if (item.ambiguityNote) {
+    for (const item of (result.changeItems || [])) {
+      console.log(`  - ID: ${item?.id ?? 'N/A'}`);
+      console.log(`    Intent: ${item?.intent ?? 'N/A'}`);
+      console.log(`    Fragment: "${item?.userRequestFragment ?? 'N/A'}"`);
+      if (item?.ambiguityNote) {
         console.log(`    ⚠️ Ambiguity: ${item.ambiguityNote}`);
       }
     }
 
     // 2) Candidate Locations
     console.log('\n[2] CANDIDATE LOCATIONS:');
-    for (const item of result.changeItems) {
-      console.log(`  Change Item: ${item.id}`);
-      for (const candidate of item.candidates) {
-        console.log(`    - Location: ${candidate.locationDescription}`);
-        console.log(`      Excerpt: "${candidate.excerptFromDocument.substring(0, 80)}..."`);
-        console.log(`      Rationale: ${candidate.rationale}`);
-        console.log(`      Confidence: ${(candidate.confidence * 100).toFixed(0)}%`);
+    for (const item of (result.changeItems || [])) {
+      console.log(`  Change Item: ${item?.id ?? 'N/A'}`);
+      for (const candidate of (item?.candidates || [])) {
+        const excerpt = candidate?.excerptFromDocument ?? '';
+        console.log(`    - Location: ${candidate?.locationDescription ?? 'N/A'}`);
+        console.log(`      Excerpt: "${excerpt.substring(0, 80)}${excerpt.length > 80 ? '...' : ''}"`);
+        console.log(`      Rationale: ${candidate?.rationale ?? 'N/A'}`);
+        console.log(`      Confidence: ${candidate?.confidence != null ? (candidate.confidence * 100).toFixed(0) : 'N/A'}%`);
       }
     }
 
     // 3) Edit Specs
     console.log('\n[3] EDIT SPECIFICATIONS:');
-    for (const spec of result.editSpecs) {
-      console.log(`  - Spec for: ${spec.changeItemId}`);
-      console.log(`    Target Unit: ${spec.targetUnit}`);
-      console.log(`    Edit Type: ${spec.editType}`);
-      console.log(`    Anchor: "${spec.anchorText.substring(0, 60)}..."`);
-      console.log(`    Before: "${spec.beforeText.substring(0, 60)}..."`);
-      console.log(`    After: "${spec.afterText.substring(0, 60)}..."`);
+    for (const spec of (result.editSpecs || [])) {
+      const anchor = spec?.anchorText ?? '';
+      const before = spec?.beforeText ?? '';
+      const after = spec?.afterText ?? '';
+      console.log(`  - Spec for: ${spec?.changeItemId ?? 'N/A'}`);
+      console.log(`    Target Unit: ${spec?.targetUnit ?? 'N/A'}`);
+      console.log(`    Edit Type: ${spec?.editType ?? 'N/A'}`);
+      console.log(`    Anchor: "${anchor.substring(0, 60)}${anchor.length > 60 ? '...' : ''}"`);
+      console.log(`    Before: "${before.substring(0, 60)}${before.length > 60 ? '...' : ''}"`);
+      console.log(`    After: "${after.substring(0, 60)}${after.length > 60 ? '...' : ''}"`);
     }
 
     // 4) BEFORE / AFTER Evidence
     console.log('\n[4] BEFORE / AFTER EVIDENCE:');
-    for (const exec of result.executions) {
-      console.log(`  - Spec: ${exec.editSpecId}`);
-      console.log(`    Anchor Found: ${exec.anchorFound}`);
-      console.log(`    Applied: ${exec.applied}`);
-      if (exec.blockReason) {
+    for (const exec of (result.executions || [])) {
+      const actualBefore = exec?.actualBefore ?? '';
+      const actualAfter = exec?.actualAfter ?? '';
+      console.log(`  - Spec: ${exec?.editSpecId ?? 'N/A'}`);
+      console.log(`    Anchor Found: ${exec?.anchorFound ?? 'N/A'}`);
+      console.log(`    Applied: ${exec?.applied ?? 'N/A'}`);
+      if (exec?.blockReason) {
         console.log(`    ❌ Block Reason: ${exec.blockReason}`);
       }
-      console.log(`    BEFORE: "${exec.actualBefore.substring(0, 100)}..."`);
-      console.log(`    AFTER:  "${exec.actualAfter.substring(0, 100)}..."`);
+      console.log(`    BEFORE: "${actualBefore.substring(0, 100)}${actualBefore.length > 100 ? '...' : ''}"`);
+      console.log(`    AFTER:  "${actualAfter.substring(0, 100)}${actualAfter.length > 100 ? '...' : ''}"`);
     }
 
     // 5) Verification Result
     console.log('\n[5] VERIFICATION RESULT:');
-    console.log(`  Status: ${result.verification.status}`);
-    console.log(`  Summary: ${result.verification.summary}`);
+    console.log(`  Status: ${result.verification?.status ?? 'N/A'}`);
+    console.log(`  Summary: ${result.verification?.summary ?? 'N/A'}`);
     console.log(`  Document Integrity:`);
-    console.log(`    - Valid: ${result.verification.documentIntegrity.valid}`);
-    console.log(`    - Can Open: ${result.verification.documentIntegrity.canOpen}`);
-    console.log(`    - Structure Preserved: ${result.verification.documentIntegrity.structurePreserved}`);
+    console.log(`    - Valid: ${result.verification?.documentIntegrity?.valid ?? 'N/A'}`);
+    console.log(`    - Can Open: ${result.verification?.documentIntegrity?.canOpen ?? 'N/A'}`);
+    console.log(`    - Structure Preserved: ${result.verification?.documentIntegrity?.structurePreserved ?? 'N/A'}`);
     console.log('  Spec Results:');
-    for (const specResult of result.verification.specResults) {
-      console.log(`    - ${specResult.editSpecId}: ${specResult.status}`);
-      console.log(`      after_text found: ${specResult.afterTextFound}`);
-      console.log(`      location correct: ${specResult.locationCorrect}`);
-      console.log(`      match: ${specResult.evidence.matchPercentage}%`);
-      if (specResult.failureReason) {
+    for (const specResult of (result.verification?.specResults || [])) {
+      console.log(`    - ${specResult?.editSpecId ?? 'N/A'}: ${specResult?.status ?? 'N/A'}`);
+      console.log(`      after_text found: ${specResult?.afterTextFound ?? 'N/A'}`);
+      console.log(`      location correct: ${specResult?.locationCorrect ?? 'N/A'}`);
+      console.log(`      match: ${specResult?.evidence?.matchPercentage ?? 'N/A'}%`);
+      if (specResult?.failureReason) {
         console.log(`      ❌ Reason: ${specResult.failureReason}`);
       }
     }
 
     // Timing
     console.log('\n[TIMING]:');
-    console.log(`  Interpret: ${result.timing.interpretMs}ms`);
-    console.log(`  Spec Gen:  ${result.timing.specGenMs}ms`);
-    console.log(`  Execute:   ${result.timing.executeMs}ms`);
-    console.log(`  Verify:    ${result.timing.verifyMs}ms`);
-    console.log(`  TOTAL:     ${result.timing.totalMs}ms`);
+    console.log(`  Interpret: ${result.timing?.interpretMs ?? 'N/A'}ms`);
+    console.log(`  Spec Gen:  ${result.timing?.specGenMs ?? 'N/A'}ms`);
+    console.log(`  Execute:   ${result.timing?.executeMs ?? 'N/A'}ms`);
+    console.log(`  Verify:    ${result.timing?.verifyMs ?? 'N/A'}ms`);
+    console.log(`  TOTAL:     ${result.timing?.totalMs ?? 'N/A'}ms`);
     console.log('='.repeat(70));
 
     // Build API response
-    const success = result.verification.status === 'PASS';
+    const success = result.verification?.status === 'PASS';
     const response: Record<string, unknown> = {
       success,
       userRequest: result.userRequest,
-      changeItems: result.changeItems,
-      editSpecs: result.editSpecs.map(spec => ({
-        changeItemId: spec.changeItemId,
-        targetUnit: spec.targetUnit,
-        editType: spec.editType,
-        anchorText: spec.anchorText.substring(0, 200) + (spec.anchorText.length > 200 ? '...' : ''),
-        beforeText: spec.beforeText,
-        afterText: spec.afterText,
-        constraints: spec.constraints,
-      })),
-      executions: result.executions.map(exec => ({
-        editSpecId: exec.editSpecId,
-        anchorFound: exec.anchorFound,
-        applied: exec.applied,
-        blockReason: exec.blockReason,
-        beforeText: exec.actualBefore.substring(0, 300) + (exec.actualBefore.length > 300 ? '...' : ''),
-        afterText: exec.actualAfter.substring(0, 300) + (exec.actualAfter.length > 300 ? '...' : ''),
-        locationIndex: exec.locationIndex,
-      })),
+      changeItems: result.changeItems || [],
+      editSpecs: (result.editSpecs || []).map(spec => {
+        const anchorText = spec?.anchorText ?? '';
+        return {
+          changeItemId: spec?.changeItemId,
+          targetUnit: spec?.targetUnit,
+          editType: spec?.editType,
+          anchorText: anchorText.substring(0, 200) + (anchorText.length > 200 ? '...' : ''),
+          beforeText: spec?.beforeText ?? '',
+          afterText: spec?.afterText ?? '',
+          constraints: spec?.constraints ?? [],
+        };
+      }),
+      executions: (result.executions || []).map(exec => {
+        const actualBefore = exec?.actualBefore ?? '';
+        const actualAfter = exec?.actualAfter ?? '';
+        return {
+          editSpecId: exec?.editSpecId,
+          anchorFound: exec?.anchorFound,
+          applied: exec?.applied,
+          blockReason: exec?.blockReason,
+          beforeText: actualBefore.substring(0, 300) + (actualBefore.length > 300 ? '...' : ''),
+          afterText: actualAfter.substring(0, 300) + (actualAfter.length > 300 ? '...' : ''),
+          locationIndex: exec?.locationIndex,
+        };
+      }),
       verification: {
-        status: result.verification.status,
-        summary: result.verification.summary,
-        documentIntegrity: result.verification.documentIntegrity,
-        specResults: result.verification.specResults,
+        status: result.verification?.status ?? 'FAIL',
+        summary: result.verification?.summary ?? 'Unknown error occurred',
+        documentIntegrity: result.verification?.documentIntegrity ?? { valid: false, canOpen: false, structurePreserved: false },
+        specResults: result.verification?.specResults ?? [],
       },
-      timing: result.timing,
+      timing: result.timing ?? {},
     };
 
     if (success && result.modifiedDocument) {

@@ -205,8 +205,30 @@ REMEMBER: Never change "the Company" references in clauses - only change the act
     temperature: 0.1,
   });
 
-  const result = JSON.parse(response.choices[0].message.content || '{}');
-  return result.changeItems || [];
+  let result: { changeItems?: ChangeItem[] };
+  try {
+    result = JSON.parse(response.choices[0].message.content || '{}');
+  } catch (parseError) {
+    console.error('[interpretChanges] Failed to parse LLM response:', parseError);
+    console.error('[interpretChanges] Raw content:', response.choices[0].message.content);
+    return [];
+  }
+
+  // Validate and sanitize changeItems
+  const changeItems = (result.changeItems || []).map((item, index) => ({
+    id: item?.id ?? `change-${index + 1}`,
+    userRequestFragment: item?.userRequestFragment ?? userRequest,
+    intent: item?.intent ?? 'replace',
+    candidates: (item?.candidates || []).map((c, cIndex) => ({
+      locationDescription: c?.locationDescription ?? `Location ${cIndex + 1}`,
+      excerptFromDocument: c?.excerptFromDocument ?? '',
+      rationale: c?.rationale ?? 'No rationale provided',
+      confidence: typeof c?.confidence === 'number' ? c.confidence : 0.5,
+    })),
+    ambiguityNote: item?.ambiguityNote,
+  }));
+
+  return changeItems;
 }
 
 // ========================
@@ -301,8 +323,29 @@ Generate an editSpec for EACH changeItem. Do not skip any.`;
     temperature: 0.1,
   });
 
-  const result = JSON.parse(response.choices[0].message.content || '{}');
-  return result.editSpecs || [];
+  let result: { editSpecs?: EditSpec[] };
+  try {
+    result = JSON.parse(response.choices[0].message.content || '{}');
+  } catch (parseError) {
+    console.error('[generateEditSpecs] Failed to parse LLM response:', parseError);
+    console.error('[generateEditSpecs] Raw content:', response.choices[0].message.content);
+    return [];
+  }
+
+  // Validate and sanitize editSpecs
+  const editSpecs = (result.editSpecs || []).map((spec, index) => ({
+    changeItemId: spec?.changeItemId ?? `change-${index + 1}`,
+    targetUnit: spec?.targetUnit ?? 'paragraph',
+    anchorText: spec?.anchorText ?? '',
+    boundaryStart: spec?.boundaryStart ?? '',
+    boundaryEnd: spec?.boundaryEnd ?? '',
+    editType: spec?.editType ?? 'replace',
+    beforeText: spec?.beforeText ?? '',
+    afterText: spec?.afterText ?? '',
+    constraints: spec?.constraints ?? [],
+  })) as EditSpec[];
+
+  return editSpecs;
 }
 
 // ========================
