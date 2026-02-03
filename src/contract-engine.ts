@@ -144,46 +144,62 @@ ${documentContext}
 USER REQUEST:
 ${userRequest}
 
-STEP 1 - IDENTIFY THE TARGET COMPANY NAME:
-Look at the TITLE area (early paragraphs) for pattern like "SECULETTER & [COMPANY]".
-The company after "&" is typically "을" (Party B).
-Extract this EXACT company name (e.g., "AKN Enterprise").
+====== STEP 1: IDENTIFY WHICH COMPANY TO REPLACE ======
 
-STEP 2 - SEARCH ENTIRE DOCUMENT FOR THAT NAME:
-Search ALL paragraphs [P0] through the end for that company name.
-Create a change item for EACH occurrence found.
+User says "을 회사" or "Party B" - you must find which company that is.
 
-LOCATIONS TO CHECK:
-1. TITLE: "[P#] SECULETTER&[Company]" or similar
-2. PARTY DEFINITION: "[P#] ... [Company], a company incorporated in..."
-3. CONTACT SECTION: "[P#] The Company:[Company]" with address/email
-4. SIGNATURE BLOCKS: "[P#] [Company]" followed by "[P#] [Person / Title]"
-5. ANY OTHER OCCURRENCE of the company name
+Look for the PARTY DEFINITION section (usually near the beginning) with numbered items:
+  "1. SECULETTER CO., LTD. a company incorporated in..." → This is 갑 (Party A)
+  "2. [COMPANY NAME], a company incorporated in..." → This is 을 (Party B)
 
-CRITICAL RULES:
-- excerptFromDocument MUST be COPIED exactly from a [P#] line above
-- Do NOT use "The Company acknowledges..." - find ACTUAL company name text
-- For signature blocks, look for the company name, NOT random paragraphs
-- Create one change_item per location (could be 5+ if company appears many times)
+Also check the TITLE for pattern: "SECULETTER & [COMPANY]"
+  - SECULETTER = 갑 (Party A)
+  - The other company = 을 (Party B)
+
+EXTRACT THE EXACT COMPANY NAME for 을 (Party B). Examples:
+  - "AKN Enterprise"
+  - "ABC Corporation"
+
+====== STEP 2: SEARCH FOR ALL OCCURRENCES ======
+
+Now search the ENTIRE document for that exact company name.
+Look in ALL paragraphs from [P0] to the end.
+
+Typical locations:
+1. TITLE: "SECULETTER & AKN Enterprise" or "SECULETTER&AKN Enterprise"
+2. PARTY DEFINITION: "AKN Enterprise, a company incorporated in..."
+3. CONTACT SECTION: "The Company:AKN Enterprise" or "The Company: AKN Enterprise"
+4. SIGNATURE BLOCKS: Lines containing just "AKN Enterprise" near person names
+5. Anywhere else the company name appears
+
+====== STEP 3: CREATE CHANGE ITEMS ======
+
+Create ONE change_item for EACH occurrence found.
+If "AKN Enterprise" appears 5 times, create 5 change_items.
+
+CRITICAL:
+- excerptFromDocument = COPY the exact text from [P#] line
+- Do NOT copy random sentences - find lines with the COMPANY NAME
+- Include enough context for unique matching
 
 RESPOND IN JSON:
 {
   "changeItems": [
     {
       "id": "change_1",
-      "userRequestFragment": "Title: [Company] in header",
+      "userRequestFragment": "Company name in title",
       "intent": "replace",
       "candidates": [{
-        "locationDescription": "Title at [P#]",
-        "excerptFromDocument": "<<<COPY exact text from [P#]>>>",
-        "rationale": "Contains party name",
+        "locationDescription": "[P#] Title section",
+        "excerptFromDocument": "<<<exact text from document>>>",
+        "rationale": "Contains target company name",
         "confidence": 0.95
       }]
     }
   ]
 }
 
-IMPORTANT: Search for the COMPANY NAME (e.g., "AKN Enterprise"), not generic phrases.`;
+Remember: First identify the company name, then search for ALL its occurrences.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
