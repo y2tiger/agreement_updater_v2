@@ -136,7 +136,7 @@ async function interpretChanges(
     .map((p, i) => `[P${i}] ${p.text}`)
     .join('\n');
 
-  const prompt = `You are a document analysis expert. Find ALL LOCATIONS in the document where the specified party's information appears.
+  const prompt = `You are a document analysis expert. Find ALL LOCATIONS where the target party's name appears.
 
 DOCUMENT CONTENT:
 ${documentContext}
@@ -144,53 +144,46 @@ ${documentContext}
 USER REQUEST:
 ${userRequest}
 
-TASK: Create MULTIPLE change items - one for EACH location where the party appears.
+STEP 1 - IDENTIFY THE TARGET COMPANY NAME:
+Look at the TITLE area (early paragraphs) for pattern like "SECULETTER & [COMPANY]".
+The company after "&" is typically "을" (Party B).
+Extract this EXACT company name (e.g., "AKN Enterprise").
 
-MANDATORY: You MUST create SEPARATE change items for:
-1. change_1: TITLE/HEADER - Company name in title (e.g., "SECULETTER & AKN Enterprise")
-2. change_2: PARTY DEFINITION - The legal definition clause (e.g., "Company X, a company incorporated in...")
-3. change_3: SIGNATURE BLOCK - Near the end (e.g., "AKN Enterprise\\nMohammad Aminul Islam / Proprietor")
+STEP 2 - SEARCH ENTIRE DOCUMENT FOR THAT NAME:
+Search ALL paragraphs [P0] through the end for that company name.
+Create a change item for EACH occurrence found.
 
-HOW TO SEARCH:
-- TITLE: Search [P0]-[P30] for patterns with "&" or "and" between company names
-- PARTY DEFINITION: Search for "incorporated" or "hereinafter referred"
-- SIGNATURE: Search [P200+] or last 50 paragraphs for company name followed by person name
+LOCATIONS TO CHECK:
+1. TITLE: "[P#] SECULETTER&[Company]" or similar
+2. PARTY DEFINITION: "[P#] ... [Company], a company incorporated in..."
+3. CONTACT SECTION: "[P#] The Company:[Company]" with address/email
+4. SIGNATURE BLOCKS: "[P#] [Company]" followed by "[P#] [Person / Title]"
+5. ANY OTHER OCCURRENCE of the company name
 
-PARTY IDENTIFICATION:
-- "을" / "Party B" / "Distributor" / "Licensee" = Second party
-- "갑" / "Party A" / "Licensor" / "Provider" = First party
-- Identify which party user wants to change, then find ALL its occurrences
-
-CRITICAL:
-- excerptFromDocument = EXACT text copied from document (not paraphrased)
-- Create 3 separate change_items if party appears in 3 locations
-- Do NOT merge multiple locations into one change item
+CRITICAL RULES:
+- excerptFromDocument MUST be COPIED exactly from a [P#] line above
+- Do NOT use "The Company acknowledges..." - find ACTUAL company name text
+- For signature blocks, look for the company name, NOT random paragraphs
+- Create one change_item per location (could be 5+ if company appears many times)
 
 RESPOND IN JSON:
 {
   "changeItems": [
     {
       "id": "change_1",
-      "userRequestFragment": "Replace party name in title",
+      "userRequestFragment": "Title: [Company] in header",
       "intent": "replace",
-      "candidates": [{"locationDescription": "Title page", "excerptFromDocument": "<<<exact text>>>", "rationale": "...", "confidence": 0.95}]
-    },
-    {
-      "id": "change_2",
-      "userRequestFragment": "Replace party definition clause",
-      "intent": "replace",
-      "candidates": [{"locationDescription": "Party definition", "excerptFromDocument": "<<<exact text>>>", "rationale": "...", "confidence": 0.95}]
-    },
-    {
-      "id": "change_3",
-      "userRequestFragment": "Replace signature block",
-      "intent": "replace",
-      "candidates": [{"locationDescription": "Signature section", "excerptFromDocument": "<<<exact text>>>", "rationale": "...", "confidence": 0.95}]
+      "candidates": [{
+        "locationDescription": "Title at [P#]",
+        "excerptFromDocument": "<<<COPY exact text from [P#]>>>",
+        "rationale": "Contains party name",
+        "confidence": 0.95
+      }]
     }
   ]
 }
 
-YOU MUST OUTPUT 3 CHANGE ITEMS if the party appears in title, definition, and signature sections.`;
+IMPORTANT: Search for the COMPANY NAME (e.g., "AKN Enterprise"), not generic phrases.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
