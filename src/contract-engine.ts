@@ -136,7 +136,7 @@ async function interpretChanges(
     .map((p, i) => `[P${i}] ${p.text}`)
     .join('\n');
 
-  const prompt = `You are a document analysis expert. Find ALL LOCATIONS where the target party's name appears.
+  const prompt = `You are a contract document expert. Find locations where the target party's ACTUAL NAME appears.
 
 DOCUMENT CONTENT:
 ${documentContext}
@@ -144,62 +144,59 @@ ${documentContext}
 USER REQUEST:
 ${userRequest}
 
-====== STEP 1: IDENTIFY WHICH COMPANY TO REPLACE ======
+====== CRITICAL: DO NOT REPLACE LEGAL REFERENCE TERMS ======
 
-User says "을 회사" or "Party B" - you must find which company that is.
+Legal contracts define parties and then refer to them by reference terms:
+  - "hereinafter referred to as the 'Company'" → "the Company" is a REFERENCE TERM
+  - "hereinafter referred to as 'SecuLetter'" → "SecuLetter" is a REFERENCE TERM
 
-Look for the PARTY DEFINITION section (usually near the beginning) with numbered items:
-  "1. SECULETTER CO., LTD. a company incorporated in..." → This is 갑 (Party A)
-  "2. [COMPANY NAME], a company incorporated in..." → This is 을 (Party B)
+⚠️ NEVER create change items for sentences containing only reference terms like:
+  - "the Company shall..."
+  - "the Company agrees..."
+  - "SecuLetter hereby appoints the Company..."
 
-Also check the TITLE for pattern: "SECULETTER & [COMPANY]"
-  - SECULETTER = 갑 (Party A)
-  - The other company = 을 (Party B)
+These reference terms must NOT be changed because they are legally defined.
 
-EXTRACT THE EXACT COMPANY NAME for 을 (Party B). Examples:
-  - "AKN Enterprise"
-  - "ABC Corporation"
+✓ ONLY change the ACTUAL COMPANY NAME where it appears:
+  - Title: "SECULETTER & AKN Enterprise"
+  - Party definition: "AKN Enterprise, a company incorporated in..."
+  - Contact info: "The Company: AKN Enterprise"
+  - Signature blocks: "AKN Enterprise" as a standalone name
 
-====== STEP 2: SEARCH FOR ALL OCCURRENCES ======
+====== STEP 1: IDENTIFY THE COMPANY NAME ======
 
-Now search the ENTIRE document for that exact company name.
-Look in ALL paragraphs from [P0] to the end.
+Find the PARTY DEFINITION section (numbered items near start):
+  "1. SECULETTER CO., LTD. ... (hereinafter referred to as 'SecuLetter')" → 갑
+  "2. AKN Enterprise ... (hereinafter referred to as the 'Company')" → 을
 
-Typical locations:
-1. TITLE: "SECULETTER & AKN Enterprise" or "SECULETTER&AKN Enterprise"
-2. PARTY DEFINITION: "AKN Enterprise, a company incorporated in..."
-3. CONTACT SECTION: "The Company:AKN Enterprise" or "The Company: AKN Enterprise"
-4. SIGNATURE BLOCKS: Lines containing just "AKN Enterprise" near person names
-5. Anywhere else the company name appears
+User wants to change "을 회사" = Party B = "AKN Enterprise"
+
+====== STEP 2: FIND ACTUAL NAME OCCURRENCES ONLY ======
+
+Search for "AKN Enterprise" as an ACTUAL NAME, not as a reference term.
+
+INCLUDE (actual company name):
+- Title: "SECULETTER & AKN Enterprise"
+- Party definition: "AKN Enterprise, a company..."
+- Contact section: "The Company: AKN Enterprise" (the name after the colon)
+- Signature blocks: "AKN Enterprise" + "Mohammad Aminul Islam / Proprietor"
+
+EXCLUDE (reference terms - DO NOT CHANGE):
+- "the Company shall actively promote..."
+- "SecuLetter hereby appoints the Company..."
+- "invoice the Company for..."
 
 ====== STEP 3: CREATE CHANGE ITEMS ======
 
-Create ONE change_item for EACH occurrence found.
-If "AKN Enterprise" appears 5 times, create 5 change_items.
-
-CRITICAL:
-- excerptFromDocument = COPY the exact text from [P#] line
-- Do NOT copy random sentences - find lines with the COMPANY NAME
-- Include enough context for unique matching
+Only create change_items for ACTUAL NAME occurrences.
+Expect 3-6 items: title, party definition, contact section, signature blocks.
 
 RESPOND IN JSON:
 {
-  "changeItems": [
-    {
-      "id": "change_1",
-      "userRequestFragment": "Company name in title",
-      "intent": "replace",
-      "candidates": [{
-        "locationDescription": "[P#] Title section",
-        "excerptFromDocument": "<<<exact text from document>>>",
-        "rationale": "Contains target company name",
-        "confidence": 0.95
-      }]
-    }
-  ]
+  "changeItems": [...]
 }
 
-Remember: First identify the company name, then search for ALL its occurrences.`;
+REMEMBER: Never change "the Company" references in clauses - only change the actual company name.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -225,7 +222,7 @@ async function generateEditSpecs(
     .map((p, i) => `[P${i}] ${p.text}`)
     .join('\n');
 
-  const prompt = `You are a precise document editor. For each Change Item, generate an exact Edit Specification.
+  const prompt = `You are a precise document editor. Generate Edit Specifications for actual company name changes.
 
 DOCUMENT CONTENT:
 ${documentContext}
@@ -236,38 +233,47 @@ ${userRequest}
 CHANGE ITEMS:
 ${JSON.stringify(changeItems, null, 2)}
 
-GOLDEN RULE: PRESERVE STRUCTURE, REPLACE ONLY VALUES
-- Do NOT add fields that don't exist in the original
-- Do NOT change the format/structure of the text
-- ONLY replace the specific values (company name, person name, etc.)
+====== CRITICAL RULES ======
 
-EXAMPLES OF CORRECT BEHAVIOR:
+1. ONLY change the ACTUAL COMPANY NAME, not reference terms:
+   ✓ "AKN Enterprise" → "ENSURE" (actual name)
+   ✗ "the Company shall..." (reference term - DO NOT CHANGE)
 
-1. TITLE: "SECULETTER & AKN Enterprise" → "SECULETTER & ENSURE"
-   (Only company name changes, structure preserved)
+2. PRESERVE STRUCTURE - change values only:
+   ✓ "AKN Enterprise, a company incorporated in Bangladesh"
+   → "ENSURE, a company incorporated in Indonesia"
 
-2. PARTY DEFINITION:
-   Original: "AKN Enterprise, a company incorporated in Bangladesh, (hereinafter..."
-   Result:   "ENSURE, a company incorporated in Indonesia, (hereinafter..."
-   (Keep same legal clause structure, just change company name and country)
+   ✗ Do NOT add email/phone if original doesn't have it
+   ✗ Do NOT restructure the text
 
-   ❌ WRONG: Adding "E: email M: phone" if original doesn't have it
-   ✓ RIGHT: Keep the original structure, only change values
+3. For CONTACT SECTION, only change:
+   - Company name: "AKN Enterprise" → "ENSURE"
+   - Person name: "Mohammad Aminul Islam" → "LEE SANG HWA"
+   - Title: "Proprietor" → "Technical Support Team"
+   - Email: old email → new email
+   - Phone: old phone → new phone
+   - Address: old address → new address
 
-3. SIGNATURE BLOCK:
-   Original: "AKN Enterprise\\nMohammad Aminul Islam / Proprietor"
-   Result:   "ENSURE\\nLEE SANG HWA / Technical Support Team"
-   (Same structure: Company + Newline + Person / Title)
+4. For SIGNATURE BLOCKS, only change:
+   - Company name line: "AKN Enterprise" → "ENSURE"
+   - Person/title line: "Mohammad Aminul Islam / Proprietor" → "LEE SANG HWA / Technical Support Team"
 
-HOW TO CREATE afterText:
-- Look at beforeText structure
-- Replace ONLY the values that need to change
-- Keep all other words/punctuation exactly the same
+====== HOW TO CREATE EDIT SPEC ======
+
+beforeText: Copy EXACT text from document
+afterText: Same structure, only values changed
+
+Example for title:
+  beforeText: "AKN Enterprise"
+  afterText: "ENSURE"
+
+Example for signature:
+  beforeText: "AKN EnterpriseMohammad Aminul Islam / Proprietor"
+  afterText: "ENSURELEE SANG HWA / Technical Support Team"
 
 FOR EACH CHANGE ITEM, PROVIDE:
-- anchorText: Larger context from document
-- beforeText: EXACT text from document (copy verbatim)
-- afterText: Same structure as beforeText, with new values substituted
+- beforeText: EXACT text from document
+- afterText: Same structure with new values
 
 RESPOND IN JSON:
 {
